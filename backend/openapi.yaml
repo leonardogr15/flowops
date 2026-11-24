@@ -164,6 +164,89 @@ paths:
               schema:
                 $ref: '#/components/schemas/CurrentOrganization'
           description: ''
+  /api/v1/org/audit-events:
+    get:
+      operationId: audit_events_list
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: query
+        name: actor
+        schema:
+          type: string
+        description: Actor email
+      - name: cursor
+        required: false
+        in: query
+        description: The pagination cursor value.
+        schema:
+          type: string
+      - in: query
+        name: from
+        schema:
+          type: string
+        description: ISO 8601, inclusive
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: target
+        schema:
+          type: string
+        description: Target id (UUID)
+      - in: query
+        name: to
+        schema:
+          type: string
+        description: ISO 8601, exclusive
+      - in: query
+        name: verb
+        schema:
+          type: string
+        description: Prefix, e.g. `request.` or `member.role_changed`
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEventList'
+          description: ''
+  /api/v1/org/inbox:
+    get:
+      operationId: inbox_list
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InboxItem'
+          description: ''
   /api/v1/org/invitations:
     get:
       operationId: v1_org_invitations_list
@@ -331,6 +414,470 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/org/notifications:
+    get:
+      operationId: notifications_list
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - name: cursor
+        required: false
+        in: query
+        description: The pagination cursor value.
+        schema:
+          type: string
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/v1/org/notifications/{id}/read:
+    post:
+      operationId: notifications_mark_read
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/org/notifications/unread:
+    get:
+      operationId: notifications_unread
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+          description: ''
+  /api/v1/org/requests:
+    get:
+      operationId: requests_list
+      description: Requests visible to the caller. `scope=mine` (default for everyone)
+        or `scope=all` (all visible).
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - name: cursor
+        required: false
+        in: query
+        description: The pagination cursor value.
+        schema:
+          type: string
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: scope
+        schema:
+          type: string
+          enum:
+          - all
+          - mine
+        description: mine (default) or all visible
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - approved
+          - cancelled
+          - draft
+          - in_review
+          - rejected
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRequestListList'
+          description: ''
+    post:
+      operationId: requests_create
+      description: Requests visible to the caller. `scope=mine` (default for everyone)
+        or `scope=all` (all visible).
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/org/requests/{id}:
+    get:
+      operationId: requests_retrieve
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+    patch:
+      operationId: requests_update
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateRequestRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/org/requests/{id}/approve:
+    post:
+      operationId: requests_approve
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/org/requests/{id}/cancel:
+    post:
+      operationId: requests_cancel
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/org/requests/{id}/comments:
+    get:
+      operationId: requests_comments_list
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+          description: ''
+    post:
+      operationId: requests_comments_create
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentInputRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+  /api/v1/org/requests/{id}/duplicate:
+    post:
+      operationId: requests_duplicate
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/org/requests/{id}/reject:
+    post:
+      operationId: requests_reject
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/org/requests/{id}/submit:
+    post:
+      operationId: requests_submit
+      description: Mixin for API views that operate inside one organization.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/org/requests/{id}/timeline:
+    get:
+      operationId: requests_timeline
+      description: Audit events of one request, for anyone who can see the request.
+      parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Slug of the active organization.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineEvent'
+          description: ''
   /api/v1/org/workflow-templates:
     get:
       operationId: workflow_templates_list
@@ -597,6 +1144,51 @@ components:
       description: |-
         * `user` - Specific person
         * `role` - Anyone with a role
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        verb:
+          type: string
+          readOnly: true
+        actor_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        actor_email:
+          type: string
+          format: email
+          readOnly: true
+        target_type:
+          type: string
+          readOnly: true
+        target_id:
+          type: string
+          format: uuid
+          readOnly: true
+        data:
+          readOnly: true
+        request_id:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor_email
+      - actor_id
+      - created_at
+      - data
+      - id
+      - request_id
+      - target_id
+      - target_type
+      - verb
     BlankEnum:
       enum:
       - ''
@@ -612,6 +1204,38 @@ components:
         * `expense` - Expense
         * `access` - Access
         * `other` - Other
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        author:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        body:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author
+      - body
+      - created_at
+      - id
+    CommentInputRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+      - body
     CreateInvitationRequest:
       type: object
       properties:
@@ -626,6 +1250,32 @@ components:
           default: member
       required:
       - email
+    CreateRequestRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          default: ''
+          maxLength: 4000
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        currency:
+          type: string
+          default: ''
+          maxLength: 3
+        template:
+          type: string
+          format: uuid
+      required:
+      - template
+      - title
     CsrfResponse:
       type: object
       properties:
@@ -666,6 +1316,21 @@ components:
       - name
       - role
       - slug
+    DecisionEnum:
+      enum:
+      - regular
+      - fallback
+      type: string
+      description: |-
+        * `regular` - regular
+        * `fallback` - fallback
+    DecisionRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          default: ''
+          maxLength: 2000
     DraftRequest:
       type: object
       properties:
@@ -675,6 +1340,47 @@ components:
             $ref: '#/components/schemas/StepInputRequest'
       required:
       - steps
+    InboxItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        step_order:
+          type: integer
+          readOnly: true
+        step_name:
+          type: string
+          readOnly: true
+        approver_type:
+          allOf:
+          - $ref: '#/components/schemas/ApproverTypeEnum'
+          readOnly: true
+        approver_role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        needs_admin:
+          type: boolean
+          readOnly: true
+        request:
+          allOf:
+          - $ref: '#/components/schemas/RequestList'
+          readOnly: true
+      required:
+      - approver_role
+      - approver_type
+      - created_at
+      - id
+      - needs_admin
+      - request
+      - step_name
+      - step_order
     InvitableRoleEnum:
       enum:
       - admin
@@ -781,6 +1487,20 @@ components:
       - id
       - invited_by
       - role
+    KindEnum:
+      enum:
+      - task_assigned
+      - task_needs_admin
+      - request_approved
+      - request_rejected
+      - comment_added
+      type: string
+      description: |-
+        * `task_assigned` - A request needs your decision
+        * `task_needs_admin` - A request needs an administrator
+        * `request_approved` - Your request was approved
+        * `request_rejected` - Your request was rejected
+        * `comment_added` - New comment on a request
     LoginRequest:
       type: object
       properties:
@@ -849,6 +1569,43 @@ components:
       - id
       - organization
       - role
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          readOnly: true
+        request:
+          type: string
+          format: uuid
+          readOnly: true
+        request_title:
+          type: string
+          readOnly: true
+        read_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - kind
+      - read_at
+      - request
+      - request_title
+    NullEnum:
+      enum:
+      - null
     Organization:
       type: object
       properties:
@@ -882,6 +1639,25 @@ components:
           maxLength: 120
       required:
       - name
+    PaginatedAuditEventList:
+      type: object
+      required:
+      - results
+      properties:
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cD00ODY%3D"
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
     PaginatedMemberList:
       type: object
       required:
@@ -901,6 +1677,44 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Member'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - results
+      properties:
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cD00ODY%3D"
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedRequestListList:
+      type: object
+      required:
+      - results
+      properties:
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cD00ODY%3D"
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestList'
     PatchedChangeRoleRequest:
       type: object
       properties:
@@ -925,6 +1739,268 @@ components:
         description:
           type: string
           maxLength: 1000
+    PatchedUpdateRequestRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          default: ''
+          maxLength: 4000
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        currency:
+          type: string
+          default: ''
+          maxLength: 3
+        revision:
+          type: integer
+          minimum: 1
+    PendingStep:
+      type: object
+      properties:
+        order:
+          type: integer
+        name:
+          type: string
+        approver_type:
+          type: string
+        approver_user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          nullable: true
+        approver_role:
+          type: string
+      required:
+      - approver_role
+      - approver_type
+      - approver_user
+      - name
+      - order
+    Permissions:
+      type: object
+      properties:
+        can_edit:
+          type: boolean
+        can_submit:
+          type: boolean
+        can_cancel:
+          type: boolean
+        can_duplicate:
+          type: boolean
+        decision:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/DecisionEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - can_cancel
+      - can_duplicate
+      - can_edit
+      - can_submit
+      - decision
+    RequestDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RequestStatusEnum'
+          readOnly: true
+        template:
+          allOf:
+          - $ref: '#/components/schemas/TemplateRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        currency:
+          type: string
+          readOnly: true
+        requester:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        current_step:
+          type: integer
+          readOnly: true
+          nullable: true
+        step_count:
+          type: integer
+          nullable: true
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        version:
+          type: integer
+          nullable: true
+          readOnly: true
+        revision:
+          type: integer
+          readOnly: true
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+          readOnly: true
+        upcoming_steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingStep'
+          readOnly: true
+        needs_admin:
+          type: boolean
+          readOnly: true
+        permissions:
+          allOf:
+          - $ref: '#/components/schemas/Permissions'
+          readOnly: true
+        duplicated_from:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - closed_at
+      - created_at
+      - currency
+      - current_step
+      - description
+      - duplicated_from
+      - id
+      - needs_admin
+      - permissions
+      - requester
+      - revision
+      - status
+      - step_count
+      - submitted_at
+      - tasks
+      - template
+      - title
+      - upcoming_steps
+      - updated_at
+      - version
+    RequestList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RequestStatusEnum'
+          readOnly: true
+        template:
+          allOf:
+          - $ref: '#/components/schemas/TemplateRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        currency:
+          type: string
+          readOnly: true
+        requester:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        current_step:
+          type: integer
+          readOnly: true
+          nullable: true
+        step_count:
+          type: integer
+          nullable: true
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - closed_at
+      - created_at
+      - currency
+      - current_step
+      - id
+      - requester
+      - status
+      - step_count
+      - submitted_at
+      - template
+      - title
+      - updated_at
+    RequestStatusEnum:
+      enum:
+      - draft
+      - in_review
+      - approved
+      - rejected
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `in_review` - In review
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `cancelled` - Cancelled
     RoleEnum:
       enum:
       - owner
@@ -935,16 +2011,6 @@ components:
         * `owner` - Owner
         * `admin` - Admin
         * `member` - Member
-    StatusEnum:
-      enum:
-      - draft
-      - published
-      - archived
-      type: string
-      description: |-
-        * `draft` - Draft
-        * `published` - Published
-        * `archived` - Archived
     Step:
       type: object
       properties:
@@ -999,6 +2065,77 @@ components:
       required:
       - approver_type
       - name
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        step_order:
+          type: integer
+          readOnly: true
+        step_name:
+          type: string
+          readOnly: true
+        approver_type:
+          allOf:
+          - $ref: '#/components/schemas/ApproverTypeEnum'
+          readOnly: true
+        approver_user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          nullable: true
+        approver_role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TaskStatusEnum'
+          readOnly: true
+        decided_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          nullable: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        comment:
+          type: string
+          readOnly: true
+        fallback:
+          type: boolean
+          readOnly: true
+          description: Decided by an admin because no regular approver was eligible.
+      required:
+      - approver_role
+      - approver_type
+      - approver_user
+      - comment
+      - decided_at
+      - decided_by
+      - fallback
+      - id
+      - status
+      - step_name
+      - step_order
+    TaskStatusEnum:
+      enum:
+      - open
+      - approved
+      - rejected
+      - cancelled
+      type: string
+      description: |-
+        * `open` - Open
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `cancelled` - Cancelled
     TemplateCreateRequest:
       type: object
       properties:
@@ -1111,6 +2248,50 @@ components:
       - published_step_count
       - published_version
       - updated_at
+    TemplateRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    TimelineEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        verb:
+          type: string
+          readOnly: true
+        actor_email:
+          type: string
+          format: email
+          readOnly: true
+        data:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor_email
+      - created_at
+      - data
+      - id
+      - verb
+    UnreadCount:
+      type: object
+      properties:
+        unread:
+          type: integer
+      required:
+      - unread
     User:
       type: object
       properties:
@@ -1146,7 +2327,7 @@ components:
           readOnly: true
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/VersionStatusEnum'
           readOnly: true
         published_at:
           type: string
@@ -1174,6 +2355,16 @@ components:
       - status
       - steps
       - updated_at
+    VersionStatusEnum:
+      enum:
+      - draft
+      - published
+      - archived
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `published` - Published
+        * `archived` - Archived
     VersionSummary:
       type: object
       properties:
@@ -1182,7 +2373,7 @@ components:
           readOnly: true
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/VersionStatusEnum'
           readOnly: true
         published_at:
           type: string

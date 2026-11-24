@@ -43,6 +43,9 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.organizations",
     "apps.workflows",
+    "apps.audit",
+    "apps.requests",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -155,6 +158,9 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "RoleEnum": "apps.organizations.models.Role",
         "InvitableRoleEnum": "apps.organizations.models.INVITABLE_ROLE_CHOICES",
+        "VersionStatusEnum": "apps.workflows.models.VersionStatus",
+        "RequestStatusEnum": "apps.requests.models.RequestStatus",
+        "TaskStatusEnum": "apps.requests.models.TaskStatus",
     },
 }
 

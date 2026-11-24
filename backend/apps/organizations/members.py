@@ -28,6 +28,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
 
 from apps.accounts.models import User, normalize_email
+from apps.audit.service import record
 from common.errors import Conflict
 
 from .models import ROLE_RANK, Invitation, Membership, Organization, Role
@@ -97,6 +98,14 @@ def invite(*, actor: Membership, email: str, role: str) -> IssuedInvitation:
     except IntegrityError as exc:  # a concurrent invitation for the same address won
         raise Conflict("An invitation for this address was just sent. Refresh to see it.") from exc
     transaction.on_commit(lambda: _send_invitation_email(invitation, token))
+    record(
+        organization=organization,
+        actor=actor.user,
+        verb="invitation.sent",
+        target_type="invitation",
+        target_id=invitation.pk,
+        data={"email": email, "role": role},
+    )
     return IssuedInvitation(invitation, token)
 
 
@@ -132,6 +141,14 @@ def revoke_invitation(*, actor: Membership, invitation_id: UUID) -> Invitation:
         raise Conflict("This invitation was already accepted, revoked or has expired.")
     invitation.revoked_at = timezone.now()
     invitation.save(update_fields=["revoked_at", "updated_at"])
+    record(
+        organization=actor.organization,
+        actor=actor.user,
+        verb="invitation.revoked",
+        target_type="invitation",
+        target_id=invitation.pk,
+        data={"email": invitation.email},
+    )
     return invitation
 
 
@@ -206,6 +223,14 @@ def accept_invitation(
     )
     invitation.accepted_at = timezone.now()
     invitation.save(update_fields=["accepted_at", "updated_at"])
+    record(
+        organization=invitation.organization,
+        actor=user,
+        verb="invitation.accepted",
+        target_type="membership",
+        target_id=membership.pk,
+        data={"email": invitation.email, "role": invitation.role, "new_account": created is not None},
+    )
     return Acceptance(membership, created)
 
 
@@ -249,8 +274,17 @@ def change_role(*, actor: Membership, member_id: UUID, role: str) -> Membership:
         return target
     if target.role == Role.OWNER and len(owners) <= 1:
         raise Conflict("An organization needs at least one owner. Make someone else an owner first.")
+    previous = target.role
     target.role = role
     target.save(update_fields=["role", "updated_at"])
+    record(
+        organization=actor.organization,
+        actor=actor.user,
+        verb="member.role_changed",
+        target_type="membership",
+        target_id=target.pk,
+        data={"email": target.user.email, "from": previous, "to": role},
+    )
     return target
 
 
@@ -265,4 +299,12 @@ def remove_member(*, actor: Membership, member_id: UUID) -> None:
             raise PermissionDenied("Only owners can remove an owner.")
     if target.role == Role.OWNER and len(owners) <= 1:
         raise Conflict("An organization needs at least one owner. Make someone else an owner first.")
+    record(
+        organization=actor.organization,
+        actor=actor.user,
+        verb="member.left" if leaving else "member.removed",
+        target_type="membership",
+        target_id=target.pk,
+        data={"email": target.user.email, "role": target.role},
+    )
     target.delete()

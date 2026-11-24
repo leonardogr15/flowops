@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
 
+from apps.audit.service import record
 from apps.organizations.models import Membership, Role
 from common.errors import Conflict
 
@@ -23,6 +24,17 @@ class StepInput:
     approver_type: str
     approver_user: UUID | None = None
     approver_role: str = ""
+
+
+def _audit(actor: Membership, verb: str, template: WorkflowTemplate, **data: object) -> None:
+    record(
+        organization=actor.organization,
+        actor=actor.user,
+        verb=verb,
+        target_type="template",
+        target_id=template.pk,
+        data={"name": template.name, **data},
+    )
 
 
 def _require_admin(actor: Membership) -> None:
@@ -106,6 +118,7 @@ def create_template(
         raise Conflict("A workflow template with this name already exists.") from exc
     version = TemplateVersion.objects.create(organization=actor.organization, template=template, number=1)
     _create_steps(version, steps)
+    _audit(actor, "template.created", template, version=1, steps=len(steps))
     return template
 
 
@@ -121,6 +134,7 @@ def update_details(*, actor: Membership, template_id: UUID, **fields: str) -> Wo
             template.save()
     except IntegrityError as exc:
         raise Conflict("A workflow template with this name already exists.") from exc
+    _audit(actor, "template.updated", template, fields=sorted(fields))
     return template
 
 
@@ -140,6 +154,7 @@ def save_draft(*, actor: Membership, template_id: UUID, steps: list[StepInput]) 
         draft.steps.all().delete()  # draft only: published versions are never touched here
     _create_steps(draft, steps)
     draft.save(update_fields=["updated_at"])
+    _audit(actor, "template.draft_saved", template, version=draft.number, steps=len(steps))
     return draft
 
 
@@ -165,4 +180,5 @@ def publish(*, actor: Membership, template_id: UUID) -> TemplateVersion:
     draft.published_at = timezone.now()
     draft.published_by = actor.user
     draft.save(update_fields=["status", "published_at", "published_by", "updated_at"])
+    _audit(actor, "template.published", template, version=draft.number)
     return draft
