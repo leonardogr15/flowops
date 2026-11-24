@@ -58,7 +58,7 @@ class CurrentOrganizationView(TenantScopedMixin, generics.GenericAPIView[Any]):
         return Response(self.get_serializer(self.organization).data)
 
     def patch(self, request: Request) -> Response:
-        data = OrganizationSerializer(self.organization, data=request.data, partial=True)
+        data = OrganizationSerializer(self.organization, data=request.data)  # name is required
         data.is_valid(raise_exception=True)
         org = rename_organization(organization=self.organization, name=data.validated_data["name"])
         return Response(self.get_serializer(org).data)

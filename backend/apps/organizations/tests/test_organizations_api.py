@@ -171,3 +171,17 @@ def test_role_rank_helper() -> None:
     assert m.has_role(Role.MEMBER)
     assert m.has_role(Role.ADMIN)
     assert not m.has_role(Role.OWNER)
+
+
+@pytest.mark.parametrize("payload", [{}, {"slug": "only-read-only-fields"}])
+def test_rename_without_a_name_is_a_validation_error(
+    api: APIClient,
+    make_org: Callable[..., Organization],
+    member_of: Callable[..., User],
+    payload: dict[str, str],
+) -> None:
+    org = make_org()
+    login(api, member_of(org, Role.ADMIN), org)
+    response = api.patch("/api/v1/org", payload, format="json")
+    assert response.status_code == 400
+    assert "name" in response.json()["errors"]
