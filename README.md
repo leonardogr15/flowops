@@ -55,6 +55,14 @@ cd flowops
 make demo   # creates .env with random local secrets, builds, starts, seeds demo data
 ```
 
+Without `make` (for example on Windows), run the same steps directly:
+
+```bash
+python scripts/make_env.py
+docker compose up -d --build --wait
+docker compose exec api python manage.py seed_demo
+```
+
 Open <http://localhost:8080>. API docs: <http://localhost:8080/api/docs/>.
 
 ### Demo accounts
