@@ -135,7 +135,8 @@ is missing. Errors use `application/problem+json`.
 | Cross-tenant requests return 404; isolation harness covers every endpoint, including object ids from another organization | `apps/organizations/tests/test_isolation.py` |
 | Invitation tokens: 256-bit random, stored only as SHA-256, single use, 7-day expiry, bound to the invited email; re-inviting revokes the previous link | `apps/organizations/members.py` |
 | Role changes re-read the acting member and lock owner rows, so concurrent demotions cannot remove the last owner | `apps/organizations/members.py` |
-| Published workflow versions are immutable (enforced in services and in the model) | `apps/workflows/` |
+| Published workflow versions are immutable (enforced in services and in the model); publishing re-checks that approvers are still members | `apps/workflows/` |
+| Production settings refuse to start without an explicit `EMAIL_BACKEND`, so invitation links are never written to logs by the local console backend | `config/settings/prod.py` |
 | Deny-by-default permissions; role checks on the server, never only in the UI | `apps/organizations/permissions.py` |
 | UUIDv7 public IDs (no sequential IDs in URLs) | `common/models.py` |
 | CSP (including `object-src 'none'`), `X-Frame-Options`, `nosniff`, `Referrer-Policy` on every response; Django admin not routed through the public entrypoint | `frontend/security-headers.conf`, `frontend/nginx.conf` |

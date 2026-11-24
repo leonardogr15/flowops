@@ -20,8 +20,9 @@ from uuid import UUID
 
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
@@ -83,14 +84,18 @@ def invite(*, actor: Membership, email: str, role: str) -> IssuedInvitation:
     ).update(revoked_at=now)
 
     token = secrets.token_urlsafe(32)
-    invitation = Invitation.objects.create(
-        organization=organization,
-        email=email,
-        role=role,
-        token_hash=hash_token(token),
-        invited_by=actor.user,
-        expires_at=now + INVITATION_TTL,
-    )
+    try:
+        with transaction.atomic():
+            invitation = Invitation.objects.create(
+                organization=organization,
+                email=email,
+                role=role,
+                token_hash=hash_token(token),
+                invited_by=actor.user,
+                expires_at=now + INVITATION_TTL,
+            )
+    except IntegrityError as exc:  # a concurrent invitation for the same address won
+        raise Conflict("An invitation for this address was just sent. Refresh to see it.") from exc
     transaction.on_commit(lambda: _send_invitation_email(invitation, token))
     return IssuedInvitation(invitation, token)
 
@@ -187,7 +192,11 @@ def accept_invitation(
             errors["password"] = list(getattr(exc, "messages", [str(exc)]))
         if errors:
             raise APIValidationError(errors)
-        created = User.objects.create_user(invitation.email, password, full_name=full_name.strip())
+        try:
+            with transaction.atomic():
+                created = User.objects.create_user(invitation.email, password, full_name=full_name.strip())
+        except (IntegrityError, DjangoValidationError) as exc:  # created concurrently
+            raise SignInRequired() from exc
         user = created
 
     if Membership.objects.filter(organization=invitation.organization, user=user).exists():
@@ -211,31 +220,28 @@ def _lock_owners(organization: Organization) -> list[Membership]:
     )
 
 
-def _locked_actor(actor: Membership) -> Membership:
-    """Re-reads the acting member under lock: a concurrent change may have altered their role."""
-    current = Membership.objects.select_for_update().filter(pk=actor.pk).first()
+def _lock_actor_and_target(actor: Membership, member_id: UUID) -> tuple[Membership, Membership]:
+    """Locks both rows in primary-key order (deadlock-free) and re-reads the actor's current role."""
+    rows = {
+        m.pk: m
+        for m in Membership.objects.select_for_update()
+        .select_related("user")
+        .filter(organization=actor.organization, pk__in={actor.pk, member_id})
+        .order_by("pk")
+    }
+    current = rows.get(actor.pk)
     if current is None:
         raise PermissionDenied("You are no longer a member of this organization.")
-    return current
-
-
-def _locked_target(actor: Membership, member_id: UUID) -> Membership:
-    target = (
-        Membership.objects.select_for_update()
-        .select_related("user")
-        .filter(organization=actor.organization, pk=member_id)
-        .first()
-    )
+    target = rows.get(member_id)
     if target is None:
         raise NotFound("Member not found.")
-    return target
+    return current, target
 
 
 @transaction.atomic
 def change_role(*, actor: Membership, member_id: UUID, role: str) -> Membership:
     owners = _lock_owners(actor.organization)
-    actor = _locked_actor(actor)
-    target = _locked_target(actor, member_id)
+    actor, target = _lock_actor_and_target(actor, member_id)
     _require_manager(actor)
     if (target.role == Role.OWNER or role == Role.OWNER) and actor.role != Role.OWNER:
         raise PermissionDenied("Only owners can grant or change the owner role.")
@@ -251,8 +257,7 @@ def change_role(*, actor: Membership, member_id: UUID, role: str) -> Membership:
 @transaction.atomic
 def remove_member(*, actor: Membership, member_id: UUID) -> None:
     owners = _lock_owners(actor.organization)
-    actor = _locked_actor(actor)
-    target = _locked_target(actor, member_id)
+    actor, target = _lock_actor_and_target(actor, member_id)
     leaving = target.pk == actor.pk
     if not leaving:
         _require_manager(actor)

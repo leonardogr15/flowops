@@ -118,7 +118,8 @@ Códigos de estado: `401` si no has iniciado sesión, `403` si tu rol no tiene p
 | Las solicitudes entre organizaciones devuelven 404; las pruebas de aislamiento cubren cada ruta, incluidos identificadores de objetos de otra organización | `apps/organizations/tests/test_isolation.py` |
 | Tokens de invitación: 256 bits aleatorios, guardados solo como SHA-256, de un solo uso, caducan a los 7 días y están ligados al correo invitado; reinvitar revoca el enlace anterior | `apps/organizations/members.py` |
 | Los cambios de rol vuelven a leer al miembro que actúa y bloquean las filas de propietarios, de modo que degradaciones simultáneas no pueden dejar la organización sin propietario | `apps/organizations/members.py` |
-| Las versiones publicadas de un flujo son inmutables (en los servicios y en el modelo) | `apps/workflows/` |
+| Las versiones publicadas de un flujo son inmutables (en los servicios y en el modelo); al publicar se comprueba de nuevo que los aprobadores siguen siendo miembros | `apps/workflows/` |
+| La configuración de producción no arranca sin un `EMAIL_BACKEND` explícito, para que los enlaces de invitación nunca acaben en los registros a través del backend de consola local | `config/settings/prod.py` |
 | Permisos denegados por defecto; comprobación de roles en el servidor, nunca solo en la interfaz | `apps/organizations/permissions.py` |
 | Identificadores públicos UUIDv7 (sin identificadores secuenciales en las URL) | `common/models.py` |
 | CSP (incluido `object-src 'none'`), `X-Frame-Options`, `nosniff` y `Referrer-Policy` en cada respuesta; la administración de Django no se enruta por el punto de entrada público | `frontend/security-headers.conf`, `frontend/nginx.conf` |

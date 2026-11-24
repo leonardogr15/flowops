@@ -79,6 +79,11 @@ def _locked_template(actor: Membership, template_id: UUID) -> WorkflowTemplate:
     )
     if template is None:
         raise NotFound("Workflow template not found.")
+    if (
+        not actor.has_role(Role.ADMIN)
+        and not template.versions.filter(status=VersionStatus.PUBLISHED).exists()
+    ):
+        raise NotFound("Workflow template not found.")  # drafts are invisible to members (same as reads)
     return template
 
 
@@ -147,6 +152,14 @@ def publish(*, actor: Membership, template_id: UUID) -> TemplateVersion:
         raise Conflict("There is no draft to publish. Edit the steps to start a new version.")
     if not draft.steps.exists():
         raise Conflict("Add at least one approval step before publishing.")
+    # Membership may have changed since the draft was saved: approvers must still belong to the org.
+    _validate_steps(
+        actor,
+        [
+            StepInput(s.name, s.approver_type, s.approver_user_id, s.approver_role)
+            for s in draft.steps.order_by("order")
+        ],
+    )
     template.versions.filter(status=VersionStatus.PUBLISHED).update(status=VersionStatus.ARCHIVED)
     draft.status = VersionStatus.PUBLISHED
     draft.published_at = timezone.now()

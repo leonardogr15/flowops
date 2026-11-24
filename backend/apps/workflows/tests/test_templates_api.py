@@ -195,3 +195,29 @@ def test_list_does_not_issue_a_query_per_template(
 
 def test_version_status_constraints() -> None:
     assert {s.value for s in VersionStatus} == {"draft", "published", "archived"}
+
+
+def test_members_cannot_learn_that_a_draft_only_template_exists(
+    admin_api: APIClient, org: Organization, member_of: Callable[..., User]
+) -> None:
+    draft_only = create(admin_api, [role_step()], name="Secret draft")["id"]
+    member = login(APIClient(enforce_csrf_checks=True), member_of(org), org)
+    assert member.patch(f"{URL}/{draft_only}", {"name": "X1"}, format="json").status_code == 404
+    assert member.put(f"{URL}/{draft_only}/draft", {"steps": [role_step()]}, format="json").status_code == 404
+    assert member.post(f"{URL}/{draft_only}/publish").status_code == 404
+
+
+def test_publish_rechecks_that_approvers_are_still_members(
+    admin_api: APIClient, org: Organization, member_of: Callable[..., User]
+) -> None:
+    from apps.organizations.models import Membership
+
+    approver = member_of(org, full_name="Leaving Soon")
+    tid = create(admin_api, [user_step(approver)])["id"]
+    Membership.objects.filter(organization=org, user=approver).delete()
+    response = admin_api.post(f"{URL}/{tid}/publish")
+    assert response.status_code == 400
+    assert response.json()["errors"]["steps"]["0"]["approver_user"] == [
+        "The approver must be a member of this organization."
+    ]
+    assert not TemplateVersion.objects.filter(template_id=tid, status=VersionStatus.PUBLISHED).exists()

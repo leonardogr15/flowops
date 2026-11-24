@@ -333,3 +333,80 @@ def test_concurrent_demotions_keep_one_owner(
         t.join()
     assert Membership.objects.filter(organization=org, role=Role.OWNER).count() >= 1
     assert sorted(results) == ["Conflict", "ok"] or sorted(results) == ["PermissionDenied", "ok"]
+
+
+def test_concurrent_invitation_for_the_same_address_is_a_conflict_not_500(
+    api: APIClient,
+    make_org: Callable[..., Organization],
+    member_of: Callable[..., User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from django.db import IntegrityError
+
+    org = make_org()
+    login(api, member_of(org, Role.ADMIN), org)
+
+    def lose_race(*args: object, **kwargs: object) -> None:
+        raise IntegrityError("organizations_invitation_one_pending")
+
+    monkeypatch.setattr(Invitation.objects, "create", lose_race)
+    response = api.post("/api/v1/org/invitations", {"email": "x@example.test"}, format="json")
+    assert response.status_code == 409
+
+
+def test_account_created_concurrently_asks_to_sign_in(
+    api: APIClient,
+    make_org: Callable[..., Organization],
+    member_of: Callable[..., User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from django.db import IntegrityError
+
+    org = make_org()
+    login(api, member_of(org, Role.ADMIN), org)
+    token = token_of(invite_via_api(api))
+
+    def lose_race(*args: object, **kwargs: object) -> None:
+        raise IntegrityError("accounts_user_email_ci_unique")
+
+    monkeypatch.setattr(User.objects, "create_user", lose_race)
+    response = APIClient().post(
+        f"/api/v1/invitations/{token}/accept",
+        {"full_name": "New Person", "password": NEW_PASSWORD},
+        format="json",
+    )
+    assert response.status_code == 409
+    assert response.json()["type"].endswith(":sign_in_required")
+    assert APIClient().get(f"/api/v1/invitations/{token}").status_code == 200  # still usable
+
+
+@pytest.mark.django_db(transaction=True)
+def test_two_admins_acting_on_each_other_do_not_deadlock(
+    make_org: Callable[..., Organization], member_of: Callable[..., User]
+) -> None:
+    from apps.organizations.members import remove_member
+
+    org = make_org()
+    member_of(org, Role.OWNER)
+    a, b = membership(org, member_of(org, Role.ADMIN)), membership(org, member_of(org, Role.ADMIN))
+    barrier = threading.Barrier(2)
+    errors: list[str] = []
+
+    def act(actor: Membership, target: Membership) -> None:
+        barrier.wait()
+        try:
+            remove_member(actor=actor, member_id=target.pk)
+        except Exception as exc:
+            errors.append(type(exc).__name__)
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=act, args=(a, b)), threading.Thread(target=act, args=(b, a))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert "OperationalError" not in errors  # no deadlock abort
+    assert (
+        Membership.objects.filter(organization=org, role=Role.ADMIN).count() == 1
+    )  # exactly one removal won
