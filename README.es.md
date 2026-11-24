@@ -12,20 +12,21 @@ multiempresa construido con Django, DRF, React y PostgreSQL.
 ![Una solicitud de compra esperando el paso de finanzas: el panel de decisión del aprobador, la ruta de aprobación y la auditoría de la solicitud](docs/images/request-detail.png)
 
 > **Estado: MVP completo, sin desplegar.** Todo lo que se describe aquí se ejecuta en local con un
-> solo comando y está cubierto por pruebas automatizadas. No hay demo publicada, despliegue en
-> producción ni usuarios reales.
+> solo comando; el comportamiento principal está cubierto por pruebas automatizadas. No hay demo
+> publicada, despliegue en producción ni usuarios reales.
 
-## Véalo en 30 segundos
+## Míralo en 30 segundos
 
 ![Maya envía una solicitud de compra; Raj, Adam y Olivia aprueban sus pasos desde su bandeja; Maya la ve aprobada con la auditoría completa](docs/images/approval-flow.gif)
 
 *Maya envía una solicitud; Raj (responsable de equipo), Adam (administrador) y Olivia (propietaria)
 aprueban sus pasos; la solicitud termina aprobada con cada decisión registrada. Grabado con
-Playwright sobre los datos de demostración; los rótulos se añaden solo para la grabación.*
+Playwright sobre los datos de demostración; la banda azul «Demo» se añade solo para la grabación y no
+forma parte de la aplicación.*
 
 | Bandeja y notificaciones | Constructor de flujos |
 |---|---|
-| ![La bandeja de Raj con dos pasos pendientes y el menú de notificaciones abierto](docs/images/inbox-and-notifications.png) | ![Edición del flujo «Purchase over $1,000» con vista previa de la ruta en tiempo real](docs/images/workflow-builder.png) |
+| ![La bandeja de Raj con siete pasos pendientes y el menú de notificaciones abierto, con avisos solo de pasos pendientes](docs/images/inbox-and-notifications.png) | ![Edición del flujo «Purchase over $1,000» con vista previa de la ruta en tiempo real](docs/images/workflow-builder.png) |
 | **Auditoría de la organización** | **En el móvil** |
 | ![El registro de auditoría, solo para administradores, con entradas en lenguaje claro](docs/images/audit-log.png) | <img src="docs/images/mobile-request.png" alt="La misma solicitud y su panel de decisión en un móvil" width="260"> |
 
@@ -52,10 +53,13 @@ Requisitos: Docker con Compose v2. `make` es opcional.
 2. **Abre <http://localhost:8080>.** Todas las cuentas de demostración usan la contraseña guardada
    como `DEMO_PASSWORD` en el archivo `.env` creado en el paso 1.
 3. **Envía una solicitud** como `maya.member@flowops.test`: *Requests → New request*, flujo
-   «Purchase over $1,000», cualquier título e importe, y después *Submit for approval*.
+   «Purchase over $1,000», cualquier título e importe, *Create draft*, después *Submit for approval*
+   y confirma.
 4. **Apruébala** paso a paso: cierra sesión y entra como `raj.approver@flowops.test` (paso 1),
    después `adam.admin@flowops.test` (paso 2) y después `olivia.owner@flowops.test` (paso 3). Cada
-   paso espera en la **bandeja** (*Inbox*) de esa persona.
+   paso espera en la **bandeja** (*Inbox*) de esa persona. Raj también pertenece a Kestrel Analytics:
+   si su bandeja aparece vacía, cambia a *Orbital Supplies Co.* con el menú de organización de arriba
+   a la izquierda.
 5. **Revisa el registro**: como Maya, abre la solicitud: está aprobada y su *Audit trail* muestra cada
    paso y quién lo decidió. Como Adam, abre **Audit log** para ver toda la organización.
 6. **Intenta romperlo** (opcional): como Adam, envía una solicitud y busca cómo aprobar tu propio
@@ -88,10 +92,10 @@ muestra el enlace una vez.
 - **Aislamiento multiempresa probado, no supuesto.** Cada vista de la API debe declarar si está
   limitada a una organización, y un arnés de pruebas descubre todas las rutas `/api/v1` desde la
   configuración de URL y llama a cada una con la cabecera y los identificadores de otra
-  organización: cualquier respuesta distinta de `404` rompe la build.
+  organización: cualquier respuesta distinta de `404` hace fallar la CI.
   ([test_isolation.py](backend/apps/organizations/tests/test_isolation.py),
   [ADR-0001](docs/adr/0001-multi-tenancy.md))
-- **Concurrencia demostrada sobre PostgreSQL real.** Dos aprobadores decidiendo a la vez, aprobar
+- **Concurrencia probada sobre PostgreSQL real.** Dos aprobadores decidiendo a la vez, aprobar
   frente a rechazar, cancelar frente a aprobar y envíos dobles se ejecutan en hilos paralelos contra
   PostgreSQL; solo gana un resultado. Se comprobó que las pruebas fallan si se quitan los bloqueos
   de fila. ([test_concurrency.py](backend/apps/requests/tests/test_concurrency.py),
@@ -99,10 +103,10 @@ muestra el enlace una vez.
 - **Nadie aprueba su propia solicitud.** Ni siquiera una propietaria. Si ya no queda nadie que pueda
   decidir un paso, otro administrador puede hacerlo, con un comentario obligatorio que queda
   registrado como decisión de administrador.
-- **Una auditoría fiable.** Los eventos se escriben en la misma transacción que el cambio, un trigger
-  de PostgreSQL impide modificarlos o borrarlos, y los eventos de cada solicitud llevan un número de
-  secuencia asignado bajo el bloqueo de su fila, así que el timeline mantiene el orden lógico aunque
-  el reloj del servidor retroceda. ([ADR-0007](docs/adr/0007-append-only-audit-log.md),
+- **Una auditoría de solo inserción con un orden fiable.** Los eventos se escriben en la misma
+  transacción que el cambio, un trigger de PostgreSQL impide modificarlos o borrarlos, y los eventos
+  de cada solicitud llevan un número de secuencia asignado bajo el bloqueo de su fila, así que su
+  historial mantiene el orden lógico aunque el reloj del servidor retroceda. ([ADR-0007](docs/adr/0007-append-only-audit-log.md),
   [test_event_order.py](backend/apps/requests/tests/test_event_order.py))
 - **Un único contrato de la base de datos al navegador.** El esquema OpenAPI 3.1 se genera desde el
   código DRF, los tipos TypeScript del cliente se generan desde el esquema y la CI falla si alguno
@@ -173,12 +177,14 @@ Los ADR están en inglés.
 
 ## Pruebas e integración continua
 
-Últimos resultados en `main`, de la [ejecución de CI 45502673165](https://github.com/leonardogr15/flowops/actions/runs/45502673165)
-(commit `b66961e`, 2026-11-24): **backend 279 aprobadas** (26 omitidas: casos del arnés de
+Últimos resultados publicados, de la [ejecución de CI 45502673165](https://github.com/leonardogr15/flowops/actions/runs/45502673165)
+en `main` (commit `b66961e`, 2026-11-24, antes de añadir las comprobaciones de accesibilidad sobre
+las páginas reales): **backend 279 aprobadas** (26 omitidas: casos del arnés de
 aislamiento que llaman a una ruta con la organización del propio usuario y sin identificador de
 objeto, donde no hay datos de otra organización que alcanzar), **cobertura 98,14 %** con un mínimo
 del 85 %; **frontend 44 aprobadas**; **extremo a extremo 18 aprobadas** en escritorio y móvil;
-escaneo de secretos limpio. La insignia de arriba muestra el estado actual.
+escaneo de secretos limpio. La insignia de arriba muestra el estado actual; las ejecuciones
+posteriores en `main` incluyen más pruebas.
 
 | Conjunto de pruebas | Comando | Cobertura |
 |---|---|---|
@@ -193,11 +199,13 @@ escaneo de secretos limpio. La insignia de arriba muestra el estado actual.
 partir de `docker-compose.e2e.yml`, así que los datos de prueba nunca se mezclan con la demo; detén
 antes la demo (`make down`), porque ambos usan los mismos puertos. `make e2e-reset` borra solo la
 base de datos de extremo a extremo. Ejecuta `make web-install` una vez antes de los objetivos de
-frontend y de extremo a extremo; `make help` lista todos los objetivos.
+frontend y de extremo a extremo (también instala el Chromium de Playwright); `make help` lista todos
+los objetivos.
 
-Las capturas y el GIF de este README se generan desde la aplicación en ejecución: `make screenshots`
-y `make demo-gif` (sobre un entorno de extremo a extremo recién sembrado; el GIF usa un contenedor de
-FFmpeg de LinuxServer.io fijado por versión y digest, solo en la máquina de desarrollo).
+Las capturas y el GIF de este README se generan desde la aplicación en ejecución, sobre un entorno
+de extremo a extremo recién sembrado: `make e2e-reset e2e-up` y después `make screenshots` y `make
+demo-gif`. El GIF y un MP4 local se generan con un contenedor de FFmpeg de LinuxServer.io fijado por
+versión y digest, solo en la máquina de desarrollo.
 
 ## Seguridad
 
@@ -215,7 +223,7 @@ FFmpeg de LinuxServer.io fijado por versión y digest, solo en la máquina de de
 | Los cambios de rol vuelven a leer al miembro que actúa y bloquean las filas de propietarios, de modo que degradaciones simultáneas no pueden dejar la organización sin propietario | `apps/organizations/members.py` |
 | Las transiciones de una solicitud se ejecutan con bloqueos de fila en un orden fijo (plantilla, solicitud, tarea abierta). Las decisiones indican el paso actual y el envío la revisión actual, así que dobles clics, reintentos y decisiones simultáneas se aplican una sola vez | `apps/requests/services.py`, ADR-0006 |
 | El solicitante nunca decide su propia solicitud, tampoco si es administrador o propietario; la decisión de un administrador exige un comentario y queda marcada en la auditoría | `apps/requests/policy.py` |
-| Los eventos de auditoría se escriben en la misma transacción que el cambio; una protección en el modelo y un trigger de PostgreSQL impiden modificarlos o borrarlos (resistente a manipulación, no inmutable criptográficamente). Los eventos de cada solicitud se numeran bajo el bloqueo de su fila, así que el timeline conserva su orden lógico aunque el reloj del servidor retroceda | `apps/audit/`, ADR-0007 |
+| Los eventos de auditoría se escriben en la misma transacción que el cambio; una protección en el modelo y un trigger de PostgreSQL impiden modificarlos o borrarlos (resistente a manipulación, no inmutable criptográficamente). Los eventos de cada solicitud se numeran bajo el bloqueo de su fila, así que su historial conserva el orden lógico aunque el reloj del servidor retroceda | `apps/audit/`, ADR-0007 |
 | La visibilidad de las solicitudes se aplica en las consultas: quien no participa recibe `404`, y se ocultan las notificaciones de solicitudes que ya no puede ver | `apps/requests/policy.py`, `apps/notifications/` |
 | Las versiones publicadas de un flujo son inmutables (en los servicios y en el modelo); al publicar se comprueba de nuevo que los aprobadores siguen siendo miembros | `apps/workflows/` |
 | La configuración de producción no arranca sin un `EMAIL_BACKEND` explícito, para que los enlaces de invitación nunca acaben en los registros a través del backend de consola local | `config/settings/prod.py` |
@@ -281,13 +289,14 @@ cabecera de organización. Los errores usan `application/problem+json`.
   proveedor de correo real, copias de seguridad de la base de datos, agregación de registros,
   métricas y alertas, y una limpieza programada de sesiones.
 - **Las notificaciones son solo dentro de la aplicación** y se actualizan cada 30 segundos; todavía
-  no hay correo ni notificaciones push.
+  no hay correo ni notificaciones push. Son un historial: un aviso de asignación conserva el texto
+  «Needs your decision» después de que el paso se decida.
 - **El aislamiento lo aplica la aplicación.** La seguridad por fila (RLS) de PostgreSQL añadiría una
   segunda capa.
-- **Los comentarios y el timeline de cada solicitud no se paginan.** Son pequeños por solicitud,
+- **Los comentarios y el historial de cada solicitud no se paginan.** Son pequeños por solicitud,
   pero no tienen un tope estricto.
 - **La auditoría de la organización se ordena por tiempo**, un orden aproximado si el reloj del
-  servidor retrocede; el timeline de cada solicitud tiene un orden lógico exacto.
+  servidor retrocede; el historial de cada solicitud tiene un orden lógico exacto.
 - Todavía no hay cambio ni recuperación de contraseña, ni OIDC/SSO.
 
 ## Estructura del proyecto

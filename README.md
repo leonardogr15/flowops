@@ -11,8 +11,9 @@ React and PostgreSQL.
 
 ![A purchase request waiting for the finance step: the approver's decision panel, the approval route and the request's audit trail](docs/images/request-detail.png)
 
-> **Status: feature-complete MVP, not deployed.** Everything below runs locally with one command and
-> is covered by automated tests. There is no hosted demo, no production deployment and no real users.
+> **Status: feature-complete MVP, not deployed.** Everything below runs locally with one command; the
+> core behaviour is covered by automated tests. There is no hosted demo, no production deployment and
+> no real users.
 
 ## See it in 30 seconds
 
@@ -20,11 +21,11 @@ React and PostgreSQL.
 
 *Maya submits a request; Raj (team lead), Adam (admin) and Olivia (owner) approve their steps; the
 request ends approved with every decision recorded. Recorded with Playwright on the demo data; the
-captions are added for the recording.*
+blue "Demo" band is added for the recording and is not part of the app.*
 
 | Inbox and notifications | Workflow builder |
 |---|---|
-| ![Raj's inbox with two steps waiting and the notifications menu open](docs/images/inbox-and-notifications.png) | ![Editing the "Purchase over $1,000" workflow with a live preview of the route](docs/images/workflow-builder.png) |
+| ![Raj's inbox with seven steps waiting and the notifications menu open, every notice about a pending step](docs/images/inbox-and-notifications.png) | ![Editing the "Purchase over $1,000" workflow with a live preview of the route](docs/images/workflow-builder.png) |
 | **Organization audit log** | **On a phone** |
 | ![The admin-only audit log with plain-language entries](docs/images/audit-log.png) | <img src="docs/images/mobile-request.png" alt="The same request and decision panel on a phone" width="260"> |
 
@@ -51,10 +52,12 @@ Requirements: Docker with Compose v2. `make` is optional.
 2. **Open <http://localhost:8080>.** Every demo account uses the password stored as `DEMO_PASSWORD`
    in the `.env` file created in step 1.
 3. **Submit a request** as `maya.member@flowops.test`: *Requests → New request*, workflow
-   "Purchase over $1,000", any title and amount, then *Submit for approval*.
+   "Purchase over $1,000", any title and amount, *Create draft*, then *Submit for approval* and
+   confirm.
 4. **Approve it** step by step: sign out and sign in as `raj.approver@flowops.test` (step 1), then
    `adam.admin@flowops.test` (step 2), then `olivia.owner@flowops.test` (step 3). Each step is
-   waiting in that person's **Inbox**.
+   waiting in that person's **Inbox**. Raj also belongs to Kestrel Analytics: if his inbox is empty,
+   switch to *Orbital Supplies Co.* with the organization menu at the top left.
 5. **Check the record**: as Maya, open the request: it is approved, and its *Audit trail* lists every
    step and who decided it. As Adam, open **Audit log** for the whole organization.
 6. **Try to break it** (optional): as Adam, submit a request and look for a way to approve your own
@@ -87,14 +90,14 @@ People and companies are fictional. Invitation emails are printed to the API log
   calls each one with another organization's header and object ids: anything other than `404`
   fails the build. ([test_isolation.py](backend/apps/organizations/tests/test_isolation.py),
   [ADR-0001](docs/adr/0001-multi-tenancy.md))
-- **Concurrency proven on real PostgreSQL.** Two approvers deciding at once, approve versus reject,
+- **Concurrency tested on real PostgreSQL.** Two approvers deciding at once, approve versus reject,
   cancel versus approve and double submits run in parallel threads against PostgreSQL; exactly one
   outcome wins. The tests were checked to fail when the row locks are removed.
   ([test_concurrency.py](backend/apps/requests/tests/test_concurrency.py),
   [ADR-0006](docs/adr/0006-request-state-machine-and-concurrency.md))
 - **Nobody approves their own request.** Not even an owner. When nobody is left who can decide a
   step, another admin can, with a mandatory comment recorded as an admin decision.
-- **An audit trail you can rely on.** Events are written in the same transaction as the change,
+- **An append-only audit trail with a reliable order.** Events are written in the same transaction as the change,
   updates and deletes are blocked by a PostgreSQL trigger, and the events of each request carry a
   sequence number assigned under the request's row lock, so the timeline stays in logical order
   even if the server clock steps back. ([ADR-0007](docs/adr/0007-append-only-audit-log.md),
@@ -163,12 +166,13 @@ and **selectors** perform tenant-scoped reads.
 
 ## Testing and CI
 
-Latest results on `main` from [CI run 45502673165](https://github.com/leonardogr15/flowops/actions/runs/45502673165)
-(commit `b66961e`, 2026-11-24): **backend 279 passed** (26 skipped: isolation-harness cases that call a
+Latest published results, from [CI run 45502673165](https://github.com/leonardogr15/flowops/actions/runs/45502673165)
+on `main` (commit `b66961e`, 2026-11-24, before the accessibility checks on the real pages were
+added): **backend 279 passed** (26 skipped: isolation-harness cases that call a
 route with the caller's own organization and no object id, where there is no other tenant's data to
 reach), **98.14% coverage** with an 85% gate; **frontend 44 passed**;
 **end-to-end 18 passed** on desktop and mobile; secret scan clean. The badge above shows the current
-status.
+status; later runs on `main` include more tests.
 
 | Suite | Command | What it covers |
 |---|---|---|
@@ -182,11 +186,13 @@ status.
 `make e2e-up` starts a separate Compose project (`flowops-e2e`, with its own database) from
 `docker-compose.e2e.yml`, so test data never mixes with the demo; stop the demo first (`make down`),
 because both use the same ports. `make e2e-reset` deletes only the end-to-end database. Run `make
-web-install` once before the frontend and end-to-end targets; `make help` lists every target.
+web-install` once before the frontend and end-to-end targets (it also installs Playwright's
+Chromium); `make help` lists every target.
 
-The README screenshots and the GIF are generated from the running app: `make screenshots` and `make
-demo-gif` (on a freshly seeded end-to-end stack; the GIF uses a pinned FFmpeg container from
-LinuxServer.io, only on the developer's machine).
+The README screenshots and the GIF are generated from the running app, on a freshly seeded
+end-to-end stack: `make e2e-reset e2e-up`, then `make screenshots` and `make demo-gif`. The GIF and
+a local MP4 are built with a pinned FFmpeg container from LinuxServer.io, only on the developer's
+machine.
 
 ## Security
 
@@ -267,7 +273,8 @@ is missing. Errors use `application/problem+json`.
 - **Not deployed.** Production would need TLS termination with HSTS, stricter production settings
   (required hosts and origins, `manage.py check --deploy` in CI), a real email provider, database
   backups, log aggregation, metrics and alerts, and a scheduled session cleanup.
-- **Notifications are in-app only** and refreshed every 30 seconds; no email or push yet.
+- **Notifications are in-app only** and refreshed every 30 seconds; no email or push yet. They are a
+  history: an assignment notice keeps its "Needs your decision" wording after the step is decided.
 - **Isolation is enforced by the application.** PostgreSQL Row-Level Security would add a second
   layer.
 - **Comments and request timelines are not paginated.** They are small per request, but have no
