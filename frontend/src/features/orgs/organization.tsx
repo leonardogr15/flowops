@@ -3,7 +3,7 @@ import { createContext, use, useEffect, useMemo, useState, type ReactNode } from
 
 import { api, setActiveOrganization, unwrap, type MyMembership } from "../../api/client";
 
-const STORAGE_KEY = "flowops.activeOrganization";
+export const ACTIVE_ORG_STORAGE_KEY = "flowops.activeOrganization";
 export const membershipsKey = ["memberships"] as const;
 
 interface OrganizationState {
@@ -21,7 +21,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     queryKey: membershipsKey,
     queryFn: () => unwrap(api.GET("/api/v1/organizations")),
   });
-  const [preferred, setPreferred] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
+  const [preferred, setPreferred] = useState<string | null>(() => localStorage.getItem(ACTIVE_ORG_STORAGE_KEY));
 
   const memberships = useMemo(() => query.data ?? [], [query.data]);
   // A stored slug is only a preference: it is honored only if the user is still a member.
@@ -30,7 +30,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
   setActiveOrganization(activeSlug); // synchronous, so child queries never run without the header
   useEffect(() => {
-    if (activeSlug) localStorage.setItem(STORAGE_KEY, activeSlug);
+    if (activeSlug) localStorage.setItem(ACTIVE_ORG_STORAGE_KEY, activeSlug);
   }, [activeSlug]);
 
   const value: OrganizationState = {

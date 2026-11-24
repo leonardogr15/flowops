@@ -14,6 +14,8 @@ from django.db import transaction
 
 from apps.accounts.models import User
 from apps.organizations.models import Membership, Organization, Role
+from apps.workflows.models import WorkflowTemplate
+from apps.workflows.services import StepInput, create_template, publish
 
 ORGS = {
     "orbital-supplies": "Orbital Supplies Co.",
@@ -49,9 +51,36 @@ class Command(BaseCommand):
                 Membership.objects.update_or_create(
                     organization=orgs[org_slug], user=user, defaults={"role": role}
                 )
+            self._seed_templates(orgs["orbital-supplies"])
         self.stdout.write(
             self.style.SUCCESS(
                 f"Demo data ready: {Organization.objects.filter(slug__in=ORGS).count()} organizations, "
                 f"{User.objects.filter(email__endswith='@flowops.test').count()} users."
             )
+        )
+
+    def _seed_templates(self, org: Organization) -> None:
+        """Two templates: one published (members can see it) and one still in draft."""
+        if WorkflowTemplate.objects.filter(organization=org).exists():
+            return
+        admin = Membership.objects.get(organization=org, user__email="adam.admin@flowops.test")
+        raj = User.objects.get(email="raj.approver@flowops.test")
+        purchase = create_template(
+            actor=admin,
+            name="Purchase over $1,000",
+            category="purchase",
+            description="Hardware, software licenses and services above $1,000.",
+            steps=[
+                StepInput(name="Team lead approval", approver_type="user", approver_user=raj.pk),
+                StepInput(name="Finance review", approver_type="role", approver_role=Role.ADMIN),
+                StepInput(name="Owner sign-off", approver_type="role", approver_role=Role.OWNER),
+            ],
+        )
+        publish(actor=admin, template_id=purchase.pk)
+        create_template(
+            actor=admin,
+            name="Production access",
+            category="access",
+            description="Temporary access to production systems.",
+            steps=[StepInput(name="Security review", approver_type="role", approver_role=Role.ADMIN)],
         )

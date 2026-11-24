@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import clsx from "clsx";
-import { LayoutDashboard, LogOut, Menu as MenuIcon, Settings, Users, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu as MenuIcon, Route, Settings, Users, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 
@@ -10,6 +10,7 @@ import { Initials } from "../ui/primitives";
 
 const NAV = [
   { to: "/overview", label: "Overview", icon: LayoutDashboard },
+  { to: "/workflows", label: "Workflows", icon: Route },
   { to: "/members", label: "Members", icon: Users },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -72,7 +73,7 @@ export function AppShell() {
       <a href="#content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2">
         Skip to content
       </a>
-      <aside className="sticky top-0 hidden h-dvh lg:block">
+      <aside aria-label="Navigation" className="sticky top-0 hidden h-dvh lg:block">
         <Sidebar />
       </aside>
 

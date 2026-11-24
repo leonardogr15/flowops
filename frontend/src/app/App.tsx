@@ -6,7 +6,12 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { SessionProvider, useSession } from "../features/auth/session";
 import { CreateOrganizationDialog } from "../features/orgs/CreateOrganizationDialog";
 import { OrganizationProvider, useOrganization } from "../features/orgs/organization";
-import { MembersPage, NoOrganizationPage, OverviewPage, SettingsPage } from "../features/orgs/pages";
+import { NoOrganizationPage, OverviewPage, SettingsPage } from "../features/orgs/pages";
+import { AcceptInvitationPage } from "../features/people/AcceptInvitationPage";
+import { MembersPage } from "../features/people/MembersPage";
+import { TemplatePage } from "../features/workflows/TemplatePage";
+import { WorkflowsPage } from "../features/workflows/WorkflowsPage";
+import { NoticeProvider } from "../shared/ui/overlays";
 import { AppShell } from "../shared/layout/AppShell";
 import { Button, PageLoading, StateMessage } from "../shared/ui/primitives";
 
@@ -45,6 +50,7 @@ function RequireOrganization() {
 
 export const routes: RouteObject[] = [
   { path: "/login", element: <LoginPage /> },
+  { path: "/invite/:token", element: <AcceptInvitationPage /> },
   {
     element: <RequireAuth />,
     children: [
@@ -54,6 +60,9 @@ export const routes: RouteObject[] = [
           { index: true, element: <Navigate to="/overview" replace /> },
           { path: "/overview", element: <OverviewPage /> },
           { path: "/members", element: <MembersPage /> },
+          { path: "/workflows", element: <WorkflowsPage /> },
+          { path: "/workflows/new", element: <TemplatePage /> },
+          { path: "/workflows/:id", element: <TemplatePage /> },
           { path: "/settings", element: <SettingsPage /> },
           { path: "*", element: <StateMessage title="Page not found">Use the navigation to find what you need.</StateMessage> },
         ],
@@ -65,7 +74,9 @@ export const routes: RouteObject[] = [
 export function Providers({ client, children }: { client: QueryClient; children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
-      <SessionProvider>{children}</SessionProvider>
+      <SessionProvider>
+        <NoticeProvider>{children}</NoticeProvider>
+      </SessionProvider>
     </QueryClientProvider>
   );
 }

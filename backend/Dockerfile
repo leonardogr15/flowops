@@ -25,6 +25,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project --no-dev
 COPY --chown=app:app . .
 RUN DJANGO_SETTINGS_MODULE=config.settings.prod DJANGO_SECRET_KEY=collectstatic-only POSTGRES_PASSWORD=unused \
+    EMAIL_BACKEND=django.core.mail.backends.dummy.EmailBackend \
     python manage.py collectstatic --noinput
 USER app
 EXPOSE 8000
