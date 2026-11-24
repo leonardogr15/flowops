@@ -17,6 +17,16 @@ export type TemplateVersion = components["schemas"]["Version"];
 export type Step = components["schemas"]["Step"];
 export type StepInput = components["schemas"]["StepInputRequest"];
 export type Category = components["schemas"]["TemplateCreateRequest"]["category"];
+export type RequestSummary = components["schemas"]["RequestList"];
+export type RequestDetail = components["schemas"]["RequestDetail"];
+export type RequestStatus = RequestDetail["status"];
+export type ApprovalTask = components["schemas"]["Task"];
+export type PendingStep = components["schemas"]["PendingStep"];
+export type RequestComment = components["schemas"]["Comment"];
+export type TimelineEvent = components["schemas"]["TimelineEvent"];
+export type InboxItem = components["schemas"]["InboxItem"];
+export type AppNotification = components["schemas"]["Notification"];
+export type AuditEvent = components["schemas"]["AuditEvent"];
 
 /** RFC 9457 problem returned by the API for every error. */
 export interface Problem {

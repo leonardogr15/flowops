@@ -10,6 +10,11 @@ import { NoOrganizationPage, OverviewPage, SettingsPage } from "../features/orgs
 import { AcceptInvitationPage } from "../features/people/AcceptInvitationPage";
 import { MembersPage } from "../features/people/MembersPage";
 import { TemplatePage } from "../features/workflows/TemplatePage";
+import { AuditPage } from "../features/audit/AuditPage";
+import { InboxPage } from "../features/requests/InboxPage";
+import { RequestDetailPage } from "../features/requests/RequestDetailPage";
+import { RequestForm } from "../features/requests/RequestForm";
+import { RequestsPage } from "../features/requests/RequestsPage";
 import { WorkflowsPage } from "../features/workflows/WorkflowsPage";
 import { NoticeProvider } from "../shared/ui/overlays";
 import { AppShell } from "../shared/layout/AppShell";
@@ -59,6 +64,12 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <Navigate to="/overview" replace /> },
           { path: "/overview", element: <OverviewPage /> },
+          { path: "/requests", element: <RequestsPage /> },
+          { path: "/requests/new", element: <RequestForm /> },
+          { path: "/requests/:id", element: <RequestDetailPage /> },
+          { path: "/requests/:id/edit", element: <RequestDetailPage editing /> },
+          { path: "/inbox", element: <InboxPage /> },
+          { path: "/audit", element: <AuditPage /> },
           { path: "/members", element: <MembersPage /> },
           { path: "/workflows", element: <WorkflowsPage /> },
           { path: "/workflows/new", element: <TemplatePage /> },

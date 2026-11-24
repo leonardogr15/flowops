@@ -41,6 +41,19 @@ function tenant(request: Request): { slug: string; role: Role } | Response {
 }
 
 export const handlers = [
+  // Shell-wide polling (inbox count, notification bell); tests override these when they matter.
+  http.get("/api/v1/org/inbox", ({ request }) => {
+    const t = tenant(request);
+    return t instanceof Response ? t : HttpResponse.json([]);
+  }),
+  http.get("/api/v1/org/notifications/unread", ({ request }) => {
+    const t = tenant(request);
+    return t instanceof Response ? t : HttpResponse.json({ unread: 0 });
+  }),
+  http.get("/api/v1/org/notifications", ({ request }) => {
+    const t = tenant(request);
+    return t instanceof Response ? t : HttpResponse.json({ next: null, previous: null, results: [] });
+  }),
   http.get("/api/v1/auth/csrf", () => {
     document.cookie = "csrftoken=test-csrf";
     return HttpResponse.json({ csrfToken: "test-csrf" });
