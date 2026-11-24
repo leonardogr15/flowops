@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { createContext, use, type ReactNode } from "react";
 
 import { api, ApiError, ensureCsrf, setActiveOrganization, unwrap, type User } from "../../api/client";
@@ -12,6 +12,23 @@ interface Session {
 
 const SessionContext = createContext<Session | null>(null);
 export const meKey = ["me"] as const;
+/** Set when the server answers 401 for a signed-in user; the login page explains why it is shown. */
+export const sessionExpiredKey = ["session", "expired"] as const;
+
+/**
+ * A 401 from any API call means the server no longer knows this browser (session expired or
+ * revoked). Forget the user and every cached tenant answer; RequireAuth then redirects to /login
+ * and keeps the page the person was on, so they return there after signing in again.
+ * Sign-in itself answers 401 for wrong credentials, so mutations can opt out with meta.authFlow.
+ */
+export function handleUnauthorized(queryClient: QueryClient, error: unknown, authFlow = false): void {
+  if (authFlow || !(error instanceof ApiError) || error.status !== 401) return;
+  if (queryClient.getQueryData(meKey) == null) return; // already anonymous
+  setActiveOrganization(null);
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== meKey[0] });
+  queryClient.setQueryData(sessionExpiredKey, true);
+  queryClient.setQueryData(meKey, null);
+}
 
 async function fetchMe(): Promise<User | null> {
   try {
@@ -31,10 +48,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await ensureCsrf();
       return unwrap(api.POST("/api/v1/auth/login", { body: { email, password } }));
     },
-    onSuccess: (user) => queryClient.setQueryData(meKey, user),
+    meta: { authFlow: true },
+    onSuccess: (user) => {
+      queryClient.setQueryData(sessionExpiredKey, false);
+      queryClient.setQueryData(meKey, user);
+    },
   });
 
   const logout = useMutation({
+    meta: { authFlow: true },
     mutationFn: async () => {
       await ensureCsrf();
       await unwrap(api.POST("/api/v1/auth/logout"));

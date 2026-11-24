@@ -4,6 +4,7 @@ import { Link } from "react-router";
 
 import { api, ApiError, ensureCsrf, unwrap, type CurrentOrganization } from "../../api/client";
 import { Button, Field, PageLoading, RoleBadge, StateMessage } from "../../shared/ui/primitives";
+import { useInbox } from "../requests/queries";
 import { canManage, membershipsKey, useOrganization } from "./organization";
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
@@ -37,6 +38,7 @@ function loadError(error: unknown) {
 
 export function OverviewPage() {
   const org = useCurrentOrganization();
+  const waiting = useInbox().data?.count;
   if (org.isPending) return <PageLoading label="Loading organization" />;
   if (org.isError) return loadError(org.error);
   const data = org.data;
@@ -63,20 +65,39 @@ export function OverviewPage() {
         </div>
       </dl>
 
-      <section className="mt-12 max-w-3xl" aria-labelledby="workflows-heading">
-        <h2 id="workflows-heading" className="text-lg font-semibold">Approval workflows</h2>
+      <section className="mt-12 max-w-3xl" aria-labelledby="work-heading">
+        <h2 id="work-heading" className="text-lg font-semibold">Requests and approvals</h2>
         <p className="mt-1.5 text-[15px] leading-relaxed text-muted">
-          Workflows define who approves each kind of request and in what order. Submitting and approving requests
-          arrives in the next release.
+          {waiting === undefined
+            ? "Requests follow your published workflows step by step, and every decision is recorded."
+            : waiting === 0
+              ? "Nothing is waiting for your decision right now."
+              : `${waiting} ${waiting === 1 ? "step is" : "steps are"} waiting for your decision.`}
         </p>
-        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
-          <Link to="/workflows" className="text-sm font-semibold text-signal hover:text-signal-strong">
-            {canManage(data.role) ? "Manage workflows" : "View workflows"}
-          </Link>
-          <Link to="/members" className="text-sm font-semibold text-signal hover:text-signal-strong">
-            See who is in {data.name}
-          </Link>
-        </div>
+        <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
+          <li><Link to="/inbox" className="text-signal hover:text-signal-strong">Open your inbox</Link></li>
+          <li><Link to="/requests/new" className="text-signal hover:text-signal-strong">Create a request</Link></li>
+          <li><Link to="/requests" className="text-signal hover:text-signal-strong">See your requests</Link></li>
+        </ul>
+      </section>
+
+      <section className="mt-10 max-w-3xl" aria-labelledby="workflows-heading">
+        <h2 id="workflows-heading" className="text-lg font-semibold">Workflows and people</h2>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-muted">
+          Workflows define who approves each kind of request and in what order.
+          {canManage(data.role) ? " As an admin you can also review the organization's audit log." : ""}
+        </p>
+        <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
+          <li>
+            <Link to="/workflows" className="text-signal hover:text-signal-strong">
+              {canManage(data.role) ? "Manage workflows" : "View workflows"}
+            </Link>
+          </li>
+          <li><Link to="/members" className="text-signal hover:text-signal-strong">See who is in {data.name}</Link></li>
+          {canManage(data.role) && (
+            <li><Link to="/audit" className="text-signal hover:text-signal-strong">Open the audit log</Link></li>
+          )}
+        </ul>
       </section>
     </>
   );

@@ -70,7 +70,7 @@ function detail(overrides: Partial<RequestDetail> = {}): RequestDetail {
     ],
     upcoming_steps: [{ order: 3, name: "Owner sign-off", approver_type: "role", approver_user: null, approver_role: "owner" }],
     needs_admin: false,
-    permissions: { can_edit: false, can_submit: false, can_cancel: false, can_duplicate: false, decision: "regular" },
+    permissions: { can_edit: false, can_submit: false, can_cancel: false, cancel_requires_reason: false, can_duplicate: false, decision: "regular" },
     duplicated_from: null,
     ...overrides,
   } as RequestDetail;
@@ -183,7 +183,7 @@ describe("request detail", () => {
         { order: 1, name: "Team lead approval", approver_type: "user", approver_user: RAJ, approver_role: "" },
         { order: 2, name: "Finance review", approver_type: "role", approver_user: null, approver_role: "admin" },
       ],
-      permissions: { can_edit: true, can_submit: true, can_cancel: true, can_duplicate: false, decision: null },
+      permissions: { can_edit: true, can_submit: true, can_cancel: true, cancel_requires_reason: false, can_duplicate: false, decision: null },
     });
     useRequestDetail(draft);
     const bodies: unknown[] = [];
@@ -259,7 +259,9 @@ describe("inbox and notifications", () => {
         request: { ...detail(), id: `r-${id}`, title },
       }) as unknown as InboxItem;
     server.use(
-      http.get("/api/v1/org/inbox", () => HttpResponse.json([item("a", "Monitor arms", false), item("b", "Standing desks", true)])),
+      http.get("/api/v1/org/inbox", () =>
+        HttpResponse.json({ count: 2, limit: 200, results: [item("a", "Monitor arms", false), item("b", "Standing desks", true)] }),
+      ),
     );
     const { container } = renderApp("/inbox");
     const desks = await screen.findByRole("link", { name: /Standing desks/ });

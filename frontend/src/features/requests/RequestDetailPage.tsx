@@ -108,13 +108,19 @@ function Actions({ request, onConflict }: { request: RequestDetail; onConflict: 
   const duplicate = useDuplicateRequest();
   const [confirm, setConfirm] = useState<"submit" | "cancel" | null>(null);
   const [error, setError] = useState<string>();
+  const [reason, setReason] = useState("");
   const p = request.permissions;
+  const forFormerMember = p.cancel_requires_reason;
 
   async function run(kind: "submit" | "cancel") {
     setError(undefined);
+    if (kind === "cancel" && forFormerMember && !reason.trim()) {
+      setError("Explain why you are cancelling this request.");
+      return;
+    }
     try {
       if (kind === "submit") await submit.mutateAsync({ id: request.id, revision: request.revision });
-      else await cancel.mutateAsync(request.id);
+      else await cancel.mutateAsync({ id: request.id, reason: reason.trim() });
       notify(kind === "submit" ? "Request submitted" : "Request cancelled");
       setConfirm(null);
     } catch (err) {
@@ -149,9 +155,13 @@ function Actions({ request, onConflict }: { request: RequestDetail; onConflict: 
               variant="secondary"
               busy={duplicate.isPending}
               onClick={async () => {
-                const copy = await duplicate.mutateAsync(request.id);
-                notify("Copied to a new draft");
-                navigate(`/requests/${copy.id}`);
+                try {
+                  const copy = await duplicate.mutateAsync(request.id);
+                  notify("Copied to a new draft");
+                  navigate(`/requests/${copy.id}`);
+                } catch (err) {
+                  notify(problem(err, "The request could not be duplicated. Try again."), "error");
+                }
               }}
             >
               Duplicate as new draft
@@ -166,20 +176,37 @@ function Actions({ request, onConflict }: { request: RequestDetail; onConflict: 
           if (!open) {
             setConfirm(null);
             setError(undefined);
+            setReason("");
           }
         }}
         title={confirm === "submit" ? "Submit for approval?" : "Cancel this request?"}
         description={
           confirm === "submit"
             ? "It will follow the current version of the workflow, starting with the first step. You won't be able to edit it afterwards."
-            : "Open approval steps are closed and the request can't be reopened. You can duplicate it later."
+            : forFormerMember
+              ? "The person who created it is no longer a member. Open approval steps are closed, and your reason is recorded in the audit trail."
+              : "Open approval steps are closed and the request can't be reopened. You can duplicate it later."
         }
         confirmLabel={confirm === "submit" ? "Submit for approval" : "Cancel request"}
         tone={confirm === "cancel" ? "danger" : "primary"}
         busy={submit.isPending || cancel.isPending}
         error={error}
         onConfirm={() => void run(confirm!)}
-      />
+      >
+        {confirm === "cancel" && forFormerMember && (
+          <div className="mb-4">
+            <label htmlFor="cancel-reason" className="block text-sm font-medium">Reason (required)</label>
+            <textarea
+              id="cancel-reason"
+              rows={3}
+              maxLength={2000}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1.5 w-full rounded-md bg-surface px-3 py-2 text-[15px] ring-1 ring-line outline-none ring-inset focus:ring-2 focus:ring-signal"
+            />
+          </div>
+        )}
+      </ConfirmDialog>
     </section>
   );
 }

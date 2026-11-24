@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ensureCsrf, unwrap, type RequestDetail, type RequestStatus } from "../../api/client";
+import { cursorOf } from "../../api/pagination";
 import { useOrganization } from "../orgs/organization";
 
 export function useSlug(): string {
@@ -24,7 +25,7 @@ export function useRequests(scope: "mine" | "all", status: RequestStatus | "") {
           },
         }),
       ),
-    getNextPageParam: (last) => (last.next ? (new URL(last.next, window.location.origin).searchParams.get("cursor") ?? undefined) : undefined),
+    getNextPageParam: (last) => cursorOf(last.next),
     enabled: Boolean(slug),
   });
 }
@@ -120,8 +121,8 @@ export function useDecision() {
 }
 
 export function useCancelRequest() {
-  return useRequestMutation<string, RequestDetail>((slug, id) =>
-    unwrap(api.POST("/api/v1/org/requests/{id}/cancel", { params: { ...header(slug), path: { id } } })),
+  return useRequestMutation<{ id: string; reason?: string }, RequestDetail>((slug, { id, reason }) =>
+    unwrap(api.POST("/api/v1/org/requests/{id}/cancel", { body: { reason: reason ?? "" }, params: { ...header(slug), path: { id } } })),
   );
 }
 

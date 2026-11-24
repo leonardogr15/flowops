@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ensureCsrf, unwrap, type InvitableRole, type IssuedInvitation, type Role } from "../../api/client";
+import { api, ensureCsrf, unwrap, type InvitableRole, type IssuedInvitation, type Member, type Role } from "../../api/client";
+import { cursorOf } from "../../api/pagination";
 import { membershipsKey, useOrganization } from "../orgs/organization";
 
 function useSlug(): string {
@@ -9,11 +10,42 @@ function useSlug(): string {
 
 const header = (slug: string) => ({ header: { "X-Organization": slug } });
 
+function membersPage(slug: string, cursor: string | undefined, pageSize: number) {
+  return unwrap(
+    api.GET("/api/v1/org/members", {
+      params: { ...header(slug), query: { page_size: pageSize, ...(cursor ? { cursor } : {}) } },
+    }),
+  );
+}
+
+/** Members page by page ("Show more"); the API caps a page at 100. */
 export function useMembers() {
   const slug = useSlug();
+  return useInfiniteQuery({
+    queryKey: ["org", slug, "members", "pages"],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => membersPage(slug, pageParam, 50),
+    getNextPageParam: (last) => cursorOf(last.next),
+    enabled: Boolean(slug),
+  });
+}
+
+/** Every member, for pickers such as "who approves this step" (follows all pages). */
+export function useAllMembers() {
+  const slug = useSlug();
   return useQuery({
-    queryKey: ["org", slug, "members"],
-    queryFn: () => unwrap(api.GET("/api/v1/org/members", { params: { ...header(slug), query: { page_size: 100 } } })),
+    queryKey: ["org", slug, "members", "all"],
+    queryFn: async () => {
+      const all: Member[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 100; page++) {
+        const data = await membersPage(slug, cursor, 100);
+        all.push(...data.results);
+        cursor = cursorOf(data.next);
+        if (!cursor) break;
+      }
+      return all;
+    },
     enabled: Boolean(slug),
   });
 }
