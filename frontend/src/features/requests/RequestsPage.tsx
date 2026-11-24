@@ -41,7 +41,7 @@ export function RequestsPage() {
       </header>
 
       <div className="mb-5 flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3">
-        <div role="tablist" aria-label="Whose requests" className="inline-flex rounded-md bg-surface p-0.5 ring-1 ring-line">
+        <div role="group" aria-label="Whose requests" className="inline-flex rounded-md bg-surface p-0.5 ring-1 ring-line">
           {(
             [
               ["mine", "Mine"],
@@ -50,8 +50,8 @@ export function RequestsPage() {
           ).map(([value, label]) => (
             <button
               key={value}
-              role="tab"
-              aria-selected={scope === value}
+              type="button"
+              aria-pressed={scope === value}
               onClick={() => update({ scope: value === "mine" ? "" : value })}
               className={clsx("rounded px-3 py-1.5 text-sm font-medium", scope === value ? "bg-ink text-paper" : "text-muted hover:text-ink")}
             >

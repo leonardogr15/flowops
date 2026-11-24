@@ -6,8 +6,10 @@ import { api, ApiError, ensureCsrf, unwrap, type InvitationPreview } from "../..
 import { Button, Field, PageLoading } from "../../shared/ui/primitives";
 import { meKey, useSession } from "../auth/session";
 import { ACTIVE_ORG_STORAGE_KEY, ROLE_LABEL, membershipsKey } from "../orgs/organization";
+import { usePageTitle } from "../../shared/layout/pageTitle";
 
 export function AcceptInvitationPage() {
+  usePageTitle("Join an organization");
   const { token = "" } = useParams();
   const { user, isLoading: sessionLoading, signOut } = useSession();
   const preview = useQuery({

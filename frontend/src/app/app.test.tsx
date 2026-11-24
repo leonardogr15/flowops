@@ -64,7 +64,7 @@ describe("organizations", () => {
     expect(await screen.findByText("Owner of orbital-supplies")).toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole("button", { name: /Switch organization/ })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /switch organization/i })[0]!);
     await user.click(await screen.findByRole("menuitem", { name: /Kestrel Analytics/ }));
 
     expect(await screen.findByText("Owner of kestrel-analytics")).toBeInTheDocument();

@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { ArrowDown, ArrowUp, Plus, Trash2, UserRound, Users } from "lucide-react";
+import { useState } from "react";
 
 import type { Member, Role, Step, StepInput } from "../../api/client";
 import { Select } from "../../shared/ui/overlays";
@@ -93,12 +94,15 @@ interface Props {
 export function StepBuilder({ steps, onChange, members, errors, listError }: Props) {
   const update = (index: number, patch: Partial<StepDraft>) =>
     onChange(steps.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  const [announcement, setAnnouncement] = useState("");
   const move = (index: number, delta: -1 | 1) => {
     const target = index + delta;
     if (target < 0 || target >= steps.length) return;
     const copy = [...steps];
     [copy[index], copy[target]] = [copy[target]!, copy[index]!];
     onChange(copy);
+    const name = steps[index]!.name.trim() || `Step ${index + 1}`;
+    setAnnouncement(`${name} moved to position ${target + 1} of ${steps.length}.`);
   };
 
   return (
@@ -108,6 +112,7 @@ export function StepBuilder({ steps, onChange, members, errors, listError }: Pro
         <p className="text-sm text-muted">Requests move through these steps in order.</p>
       </div>
       {listError && <p role="alert" className="mt-3 rounded-md bg-reject-wash px-3 py-2 text-sm text-reject">{listError}</p>}
+      <p aria-live="polite" className="sr-only">{announcement}</p>
 
       <ol className="mt-5">
         {steps.map((step, index) => (

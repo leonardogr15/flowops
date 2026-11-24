@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, type RequestDetail, type TimelineEvent } from "../../api/client";
 import { ConfirmDialog, useNotice } from "../../shared/ui/overlays";
 import { Button, Initials, PageLoading, StateMessage } from "../../shared/ui/primitives";
+import { verbLabel } from "../audit/verbs";
 import { RouteTracker, StatusBadge } from "./components";
 import { RequestForm } from "./RequestForm";
 import {
@@ -330,20 +331,8 @@ function Comments({ request }: { request: RequestDetail }) {
   );
 }
 
-const VERB_LABEL: Record<string, string> = {
-  "request.created": "Created the draft",
-  "request.updated": "Edited the draft",
-  "request.submitted": "Submitted for approval",
-  "task.approved": "Approved a step",
-  "task.rejected": "Rejected a step",
-  "request.approved": "Request approved",
-  "request.rejected": "Request rejected",
-  "request.cancelled": "Cancelled the request",
-  "comment.added": "Commented",
-};
-
 function describe(event: TimelineEvent): string {
-  const base = VERB_LABEL[event.verb] ?? event.verb;
+  const base = verbLabel(event.verb);
   const data = event.data as Record<string, unknown>;
   if (event.verb.startsWith("task.") && data.step) {
     return `${event.verb === "task.approved" ? "Approved" : "Rejected"} step ${String(data.step)}${data.step_name ? `, ${String(data.step_name)}` : ""}${data.fallback ? " (admin decision)" : ""}`;

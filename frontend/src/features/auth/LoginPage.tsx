@@ -5,6 +5,7 @@ import { Navigate, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../../api/client";
 import { Button, Field } from "../../shared/ui/primitives";
 import { RoutingSlip } from "./RoutingSlip";
+import { usePageTitle } from "../../shared/layout/pageTitle";
 import { sessionExpiredKey, useSession } from "./session";
 
 interface Errors {
@@ -22,6 +23,7 @@ function validate(email: string, password: string): Errors {
 }
 
 export function LoginPage() {
+  usePageTitle("Sign in");
   const { user, signIn } = useSession();
   const navigate = useNavigate();
   const location = useLocation();

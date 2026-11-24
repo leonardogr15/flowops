@@ -16,9 +16,9 @@
   --color-signal: #2d5be3;
   --color-signal-strong: #1f46c0;
   --color-signal-wash: #e8eefc;
-  --color-approve: #1e7f52;
+  --color-approve: #1b744b; /* 5.0:1 on approve-wash (axe, batch B) */
   --color-approve-wash: #e4f3ea;
-  --color-pending: #9a6514;
+  --color-pending: #8f5d12; /* 5.0:1 on pending-wash (axe, batch B) */
   --color-pending-wash: #fbf0dc;
   --color-reject: #b8352a;
   --color-reject-wash: #fbe7e5;

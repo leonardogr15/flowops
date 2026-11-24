@@ -4,6 +4,7 @@ import { Link } from "react-router";
 
 import { api, ApiError, unwrap, type AuditEvent } from "../../api/client";
 import { cursorOf } from "../../api/pagination";
+import { verbLabel } from "./verbs";
 import { Select } from "../../shared/ui/overlays";
 import { Button, Field, PageLoading, StateMessage } from "../../shared/ui/primitives";
 import { canManage, useOrganization } from "../orgs/organization";
@@ -105,8 +106,15 @@ export function AuditPage() {
                 <tr key={e.id}>
                   <td className="px-4 py-3 whitespace-nowrap text-muted">{when.format(new Date(e.created_at))}</td>
                   <td className="px-4 py-3">{e.actor_email || "System"}</td>
-                  <td className="px-4 py-3 font-medium">
-                    {e.target_type === "request" ? <Link to={`/requests/${e.target_id}`} className="text-signal hover:text-signal-strong">{e.verb}</Link> : e.verb}
+                  <td className="px-4 py-3">
+                    <span className="block font-medium">
+                      {e.target_type === "request" ? (
+                        <Link to={`/requests/${e.target_id}`} className="text-signal hover:text-signal-strong">{verbLabel(e.verb)}</Link>
+                      ) : (
+                        verbLabel(e.verb)
+                      )}
+                    </span>
+                    <span className="block text-xs text-muted">{e.verb}</span>
                   </td>
                   <td className="px-4 py-3 text-muted">{summary(e)}</td>
                 </tr>

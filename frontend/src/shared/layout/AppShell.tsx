@@ -13,7 +13,9 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router";
+
+import { titleFor, usePageTitle } from "./pageTitle";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
 import { useSession } from "../../features/auth/session";
 import { NotificationsMenu } from "../../features/notifications/NotificationsMenu";
@@ -110,6 +112,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell() {
   const [open, setOpen] = useState(false);
+  usePageTitle(titleFor(useLocation().pathname));
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16.5rem_minmax(0,1fr)]">
       <a
