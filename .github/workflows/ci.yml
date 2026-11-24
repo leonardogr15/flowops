@@ -85,9 +85,8 @@ jobs:
         # covered by backend tests, so the end-to-end stack uses higher limits.
         run: |
           python3 scripts/make_env.py
-          printf 'LOGIN_THROTTLE_RATE=100/min
-LOGIN_IP_THROTTLE_RATE=500/min
-' >> .env
+          echo "LOGIN_THROTTLE_RATE=100/min" >> .env
+          echo "LOGIN_IP_THROTTLE_RATE=500/min" >> .env
       - name: Build the production API image
         run: docker build --target runtime -t flowops-api:ci backend
       - name: Start the stack
