@@ -5,8 +5,8 @@
 Multi-tenant approval workflows for operations teams: purchases, expenses and access requests go to
 the right approvers, in order, with a record of every decision.
 
-> **Status: early development.** Accounts, organizations, people management and versioned approval
-> workflows work end to end. Submitting and approving requests is the next milestone; see
+> **Status: early development.** Accounts, organizations, people management, versioned approval
+> workflows and the full request lifecycle (submit, approve, reject, audit) work end to end. See
 > [Roadmap](#roadmap).
 
 ![Django](https://img.shields.io/badge/Django-6.1-0C4B33) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791) ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -20,6 +20,10 @@ the right approvers, in order, with a record of every decision.
 - **Invitations.** Admins invite people by email. Links work once, expire after 7 days and only for the invited address; new people create their account when they accept.
 - **Member management.** Change roles, remove members or leave an organization. An organization always keeps at least one owner, even under concurrent changes.
 - **Workflow templates.** Define who approves each kind of request and in what order, with a visual step builder and live route preview. Templates are versioned: admins edit a draft and publish it, published versions never change, and members only see published routes.
+- **Requests and approvals.** Create a draft and submit it; it follows the workflow version it was submitted with, step by step. Approvers decide from their inbox, a rejection needs a reason, and rejected requests can be duplicated into a new draft. Nobody can approve their own request, whatever their role. When two people decide the same step at once, exactly one decision counts and the other person is told.
+- **Admin fallback.** If nobody left can decide a step (the approver left or changed role), an admin other than the requester can decide it with a mandatory comment, recorded as an admin decision.
+- **Audit trail.** Request changes, decisions, comments, membership changes and workflow changes are recorded in an append-only log: per request for everyone who can see it, organization-wide for admins.
+- **Inbox and notifications.** Steps waiting for you, a count in the navigation, and in-app notifications for assignments, outcomes and comments.
 - **Web app.** Responsive React UI with loading, empty, error and permission states, keyboard navigation and automated accessibility checks.
 - **Operational basics.** Health and readiness endpoints, JSON logs with request IDs, RFC 9457 error responses, and OpenAPI docs at `/api/docs/`.
 
@@ -38,6 +42,9 @@ flowchart LR
 | `backend/apps/accounts` | Email-based user model, session login/logout, login throttling |
 | `backend/apps/organizations` | Organizations, memberships, roles, tenant resolution, permissions, invitations |
 | `backend/apps/workflows` | Workflow templates, versions and approval steps |
+| `backend/apps/requests` | Requests, approval tasks, comments, state machine, eligibility policy, inbox |
+| `backend/apps/audit` | Append-only audit events and the admin audit API |
+| `backend/apps/notifications` | In-app notifications |
 | `backend/common` | Problem-details errors, request-ID middleware, JSON logging, health checks |
 | `frontend/src` | React app: API client generated from the OpenAPI schema, session and organization context, pages |
 
@@ -51,6 +58,8 @@ and **selectors** perform tenant-scoped reads.
 - [ADR-0003 Runtime and tooling versions](docs/adr/0003-runtime-and-tooling-versions.md)
 - [ADR-0004 Invitations and owner protection](docs/adr/0004-invitations-and-owner-protection.md)
 - [ADR-0005 Versioned workflow templates instead of a generic workflow engine](docs/adr/0005-versioned-workflow-templates.md)
+- [ADR-0006 Request state machine and concurrency control](docs/adr/0006-request-state-machine-and-concurrency.md)
+- [ADR-0007 Append-only audit log](docs/adr/0007-append-only-audit-log.md)
 
 ## Quick start
 
@@ -93,7 +102,9 @@ companies are fictional.
 | `kim.owner@flowops.test` | Kestrel Analytics | Owner |
 
 Signing in as Maya and Adam shows the permission differences on the Members, Workflows and Settings
-pages. Raj can switch between two organizations. The demo includes a published workflow and a draft.
+pages. Raj can switch between two organizations. The demo includes a published workflow and a draft,
+and requests in every state. To follow an approval end to end, submit a request as Maya, then approve
+it as Raj (step 1), Adam (step 2) and Olivia (step 3); each step appears in that person's Inbox.
 Invitation emails are printed to the API log (`docker compose logs api`); the invite dialog also shows
 the link once.
 
@@ -115,9 +126,21 @@ endpoints need `X-Organization: <organization slug>`.
 | `GET /invitations/{token}` · `POST /invitations/{token}/accept` | the token | no | – | – | – |
 | `GET /org/workflow-templates` · `GET /org/workflow-templates/{id}` | session | yes | published only | yes | yes |
 | `POST /org/workflow-templates` · `PATCH …/{id}` · `PUT …/{id}/draft` · `POST …/{id}/publish` | session | yes | no (403) | yes | yes |
+| `GET /org/requests` (`scope`, `status`) · `GET /org/requests/{id}` | session | yes | own and taken part in² | all | all |
+| `POST /org/requests` · `PATCH /org/requests/{id}` (draft) · `POST …/{id}/submit` · `…/cancel` · `…/duplicate` | session | yes | requester | requester | requester |
+| `POST /org/requests/{id}/approve` · `…/reject` (body: `step`, `comment`) | session | yes | eligible³ | eligible³ | eligible³ |
+| `GET` and `POST /org/requests/{id}/comments` · `GET …/{id}/timeline` | session | yes | if visible | yes | yes |
+| `GET /org/inbox` · `GET /org/notifications` · `GET …/unread` · `POST …/{id}/read` | session | yes | own | own | own |
+| `GET /org/audit-events` | session | yes | no (403) | yes | yes |
 
 ¹ Admins cannot grant, change or remove the owner role; only owners can. The last owner can never be
 demoted or removed (`409`).
+
+² Requests a member created, or where they are or were an approver. Other requests get `404`.
+
+³ The named member, or anyone with the step's role or higher; never the requester. If nobody is
+eligible, admins and owners other than the requester decide with a required comment. A stale `step`
+or `revision` gets `409`; submitting when a step has no possible approver gets `422`.
 
 Status codes: `401` if not signed in, `403` if your role is not allowed, `404` for organizations you
 don't belong to (indistinguishable from ones that don't exist), and `400` if the organization header
@@ -135,6 +158,10 @@ is missing. Errors use `application/problem+json`.
 | Cross-tenant requests return 404; isolation harness covers every endpoint, including object ids from another organization | `apps/organizations/tests/test_isolation.py` |
 | Invitation tokens: 256-bit random, stored only as SHA-256, single use, 7-day expiry, bound to the invited email; re-inviting revokes the previous link | `apps/organizations/members.py` |
 | Role changes re-read the acting member and lock owner rows, so concurrent demotions cannot remove the last owner | `apps/organizations/members.py` |
+| Request transitions run under row locks in a fixed order (template, request, open task). Decisions carry the current step and submits the current revision, so double clicks, retries and simultaneous decisions apply once | `apps/requests/services.py`, ADR-0006 |
+| Requesters never decide their own request, including admins and owners; admin fallback needs a comment and is flagged in the audit log | `apps/requests/policy.py` |
+| Audit events are written in the same transaction as the change; a model guard and a PostgreSQL trigger block updates and deletes (tamper-resistant, not cryptographically immutable) | `apps/audit/`, ADR-0007 |
+| Request visibility is enforced in queries: people outside a request get `404`, and notifications about requests they can no longer see are hidden | `apps/requests/policy.py`, `apps/notifications/` |
 | Published workflow versions are immutable (enforced in services and in the model); publishing re-checks that approvers are still members | `apps/workflows/` |
 | Production settings refuse to start without an explicit `EMAIL_BACKEND`, so invitation links are never written to logs by the local console backend | `config/settings/prod.py` |
 | Deny-by-default permissions; role checks on the server, never only in the UI | `apps/organizations/permissions.py` |
@@ -149,14 +176,18 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 | Suite | Command | What it covers |
 |---|---|---|
-| Backend | `make test-api` | Auth, CSRF, throttling, tenancy, permission matrices, cross-tenant isolation, invitations, last-owner protection under concurrency, workflow versioning. Coverage gate: 85% |
+| Backend | `make test-api` | Auth, CSRF, throttling, tenancy, permission matrices, cross-tenant isolation, invitations, last-owner protection under concurrency, workflow versioning, request state machine, simultaneous decisions on real PostgreSQL, self-approval, admin fallback, audit trigger and rollback. Coverage gate: 85% |
 | Backend lint/types | `make lint-api` | ruff, mypy (strict, with Django and DRF plugins) |
-| Frontend | `make test-web` | Sign-in, redirects, organization switching, settings, members and roles, invitations and acceptance, workflow builder and publishing, axe accessibility checks |
+| Frontend | `make test-web` | Sign-in, redirects, organization switching, settings, members and roles, invitations and acceptance, workflow builder and publishing, requests (create, submit, approve, reject, lost race), inbox, notifications, audit log, axe accessibility checks |
 | Frontend lint/types | `make lint-web` | oxlint (warnings fail), TypeScript strict |
-| End-to-end | `make e2e` (stack running, `DEMO_PASSWORD` exported) | Playwright on desktop and mobile viewports against the real stack: sign-in, invite and join, build and publish a workflow |
+| End-to-end | `make e2e-up`, then `make e2e` with `DEMO_PASSWORD` exported | Playwright on desktop and mobile viewports against the real stack: sign-in, invite and join, build and publish a workflow, a request approved by Raj, Adam and Olivia with its full audit trail, rejection and duplication, self-approval refused in the UI and the API, two admins deciding the same step at once |
 | Contract | `make schema-check` | Committed OpenAPI schema matches the code; generated TypeScript types match the schema (CI) |
 
-The CI workflow (`.github/workflows/ci.yml`) is configured to run all of the above on every push and pull request, plus a production image build and gitleaks over the full history.
+The CI workflow (`.github/workflows/ci.yml`) is configured to run all of the above on every push and pull request, plus gitleaks over the full history.
+
+`make e2e-up` starts the stack with `docker-compose.e2e.yml`: the API runs the production image under
+gunicorn, without the source bind mount or the development autoreloader, so editing files while the
+suite runs cannot restart the server mid-test.
 
 ## Project layout
 
@@ -174,8 +205,8 @@ scripts/        Local helper scripts
 | Foundation | Accounts, organizations, tenancy, permissions, app shell | **Done** |
 | People | Invitations by email, member management, last-owner protection | **Done** |
 | Workflows | Versioned workflow templates with ordered approval steps | **Done** |
-| Requests | Submit, approve, reject, comment; state machine with concurrency safety; audit trail | Next |
-| Notifications | In-app and email notifications | Planned |
+| Requests | Submit, approve, reject, comment; state machine with concurrency safety; audit trail; in-app notifications | **Done** |
+| Notifications | Email notifications | Planned |
 | Hardening | PostgreSQL Row-Level Security, OIDC sign-in, rate limits per tenant | Later |
 
 ## License
