@@ -146,7 +146,12 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
   const notify = useCallback(
     (text: string, tone: Notice["tone"] = "success") => {
       const id = Date.now() + Math.random();
-      setNotices((all) => [...all.slice(-2), { id, text, tone }]);
+      // Errors and confirmations are capped separately, so new confirmations never push out an
+      // error that is still waiting to be read and dismissed.
+      setNotices((all) => {
+        const keep = all.filter((n) => n.tone === tone).slice(-2);
+        return [...all.filter((n) => n.tone !== tone), ...keep, { id, text, tone }];
+      });
       if (tone === "success") window.setTimeout(() => dismiss(id), 4000);
     },
     [dismiss],

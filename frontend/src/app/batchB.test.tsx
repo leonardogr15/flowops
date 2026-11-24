@@ -57,6 +57,18 @@ describe("FE-06b notices", () => {
     await user.click(screen.getByRole("button", { name: "Dismiss message" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("never lets later confirmations push out an unread error", async () => {
+    render(
+      <NoticeProvider>
+        <Trigger />
+      </NoticeProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "fail" }));
+    for (let i = 0; i < 4; i++) await user.click(screen.getByRole("button", { name: "ok" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("The request could not be duplicated.");
+  });
 });
 
 describe("FE-06c page titles", () => {
@@ -95,5 +107,11 @@ describe("FE-06d step builder", () => {
     await user.type(screen.getByLabelText("Step 2 name"), "Manager approval");
     await user.click(screen.getByRole("button", { name: "Move step 2 up" }));
     expect(screen.getByText("Manager approval moved to position 1 of 2.")).toHaveAttribute("aria-live", "polite");
+    // It is now first, so "up" is disabled: focus stays on the same step's "down" arrow.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Move step 1 down" })).toHaveFocus());
+
+    await user.click(screen.getByRole("button", { name: "Remove step 1" }));
+    expect(screen.getByText("Manager approval removed. 1 step left.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Remove step 1" })).toHaveFocus());
   });
 });
