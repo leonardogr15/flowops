@@ -65,6 +65,12 @@ docker compose exec api python manage.py seed_demo
 
 Open <http://localhost:8080>. API docs: <http://localhost:8080/api/docs/>.
 
+> The Compose stack is a **local demo**: the API runs Django's development server with `DEBUG`
+> on, ports are bound to `127.0.0.1`, and cookies are not marked `Secure` because it serves plain
+> HTTP. It is not a deployment configuration. The production image (`backend/Dockerfile`, target
+> `runtime`) uses gunicorn with `config.settings.prod` and is built in CI. The Django admin is not
+> exposed through nginx; locally it is at <http://localhost:8000/admin/>.
+
 ### Demo accounts
 
 All demo users share the password stored as `DEMO_PASSWORD` in your generated `.env`. People and
@@ -107,11 +113,11 @@ is missing. Errors use `application/problem+json`.
 | CSRF on every unsafe request, including login | `apps/accounts/api/views.py` |
 | Argon2 password hashing, minimum length 12 | `config/settings/base.py` |
 | Generic error for unknown email, wrong password and inactive user | `LoginView` |
-| Login throttling per client IP and email, with a trusted proxy count so `X-Forwarded-For` can't be spoofed | `apps/accounts/throttles.py`, `NUM_PROXIES` |
+| Login throttling per (client IP, email) and per client IP across all emails, with a trusted proxy count so `X-Forwarded-For` can't be spoofed; emails are hashed in throttle keys | `apps/accounts/throttles.py`, `NUM_PROXIES` |
 | Cross-tenant requests return 404; isolation harness covers every endpoint | `apps/organizations/tests/test_isolation.py` |
 | Deny-by-default permissions; role checks on the server, never only in the UI | `apps/organizations/permissions.py` |
 | UUIDv7 public IDs (no sequential IDs in URLs) | `common/models.py` |
-| CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy` on every response | `frontend/security-headers.conf` |
+| CSP (including `object-src 'none'`), `X-Frame-Options`, `nosniff`, `Referrer-Policy` on every response; Django admin not routed through the public entrypoint | `frontend/security-headers.conf`, `frontend/nginx.conf` |
 | Containers run as non-root; secrets only via environment | `Dockerfile`s, `.env.example` |
 | Secret scanning of the full git history and the working tree in CI | `.github/workflows/ci.yml` (gitleaks) |
 
@@ -128,7 +134,7 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 | End-to-end | `make e2e` (stack running, `DEMO_PASSWORD` exported) | Playwright on desktop and mobile viewports against the real stack |
 | Contract | `make schema-check` | Committed OpenAPI schema matches the code; generated TypeScript types match the schema (CI) |
 
-CI runs all of the above on every push and pull request, plus gitleaks over the full history.
+The CI workflow (`.github/workflows/ci.yml`) is configured to run all of the above on every push and pull request, plus a production image build and gitleaks over the full history.
 
 ## Project layout
 

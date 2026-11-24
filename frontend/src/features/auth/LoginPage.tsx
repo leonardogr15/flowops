@@ -24,7 +24,8 @@ export function LoginPage() {
   const { user, signIn } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? "/";
+  const requested = (location.state as { from?: string } | null)?.from;
+  const from = requested?.startsWith("/") && !requested.startsWith("//") ? requested : "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

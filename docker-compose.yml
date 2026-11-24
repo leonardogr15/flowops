@@ -29,11 +29,6 @@ services:
       timeout: 3s
       retries: 20
 
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "127.0.0.1:8025:8025"
-
   api:
     <<: *api-env
     build:
