@@ -72,7 +72,12 @@ def problem_details_handler(exc: Exception, context: dict[str, Any]) -> Response
 
     errors: Any = None
     if isinstance(exc, exceptions.ValidationError):
-        detail, errors, code = "One or more fields are invalid.", response.data, "validation_error"
+        # Subclasses with their own code (for example 422 no_eligible_approver) keep it, so clients
+        # can tell them apart; plain field validation stays "validation_error".
+        custom = type(exc) is not exceptions.ValidationError and exc.default_code != "invalid"
+        code = str(exc.default_code) if custom else "validation_error"
+        detail = getattr(exc, "summary", None) or "One or more fields are invalid."
+        errors = response.data
     elif isinstance(exc, exceptions.APIException):
         detail, code = str(exc.detail), str(exc.default_code)
     else:  # pragma: no cover - DRF only returns responses for APIException subclasses

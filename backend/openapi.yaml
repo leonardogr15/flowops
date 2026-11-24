@@ -243,9 +243,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/InboxItem'
+                $ref: '#/components/schemas/Inbox'
           description: ''
   /api/v1/org/invitations:
     get:
@@ -688,6 +686,11 @@ paths:
         required: true
       tags:
       - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
       security:
       - cookieAuth: []
       responses:
@@ -1200,6 +1203,15 @@ components:
     BlankEnum:
       enum:
       - ''
+    CancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ''
+          description: Required only when an admin cancels the request of someone
+            who is no longer a member.
+          maxLength: 2000
     CategoryEnum:
       enum:
       - purchase
@@ -1354,6 +1366,23 @@ components:
             $ref: '#/components/schemas/StepInputRequest'
       required:
       - steps
+    Inbox:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: All open tasks waiting for you, including those not listed.
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboxItem'
+          description: The oldest tasks first, at most `limit`.
+        limit:
+          type: integer
+      required:
+      - count
+      - limit
+      - results
     InboxItem:
       type: object
       properties:
@@ -1806,6 +1835,10 @@ components:
           type: boolean
         can_cancel:
           type: boolean
+        cancel_requires_reason:
+          type: boolean
+          description: An admin may cancel because the requester left; a reason is
+            required.
         can_duplicate:
           type: boolean
         decision:
@@ -1818,6 +1851,7 @@ components:
       - can_duplicate
       - can_edit
       - can_submit
+      - cancel_requires_reason
       - decision
     RequestDetail:
       type: object

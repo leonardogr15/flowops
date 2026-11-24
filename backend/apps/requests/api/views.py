@@ -9,7 +9,6 @@ from rest_framework import generics, permissions, status
 from rest_framework.exceptions import NotFound
 from rest_framework.request import Request as HttpRequest
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.audit.models import AuditEvent
@@ -17,15 +16,19 @@ from apps.organizations.api.views import ORG_HEADER
 from apps.organizations.models import Membership
 from apps.organizations.permissions import IsOrgMember
 from apps.organizations.tenancy import TenantScopedMixin
+from apps.workflows.models import Step
+from common.throttling import CreateRateThrottle
 
 from .. import policy, services
 from ..models import ApprovalTask, Comment, Request, RequestStatus
 from .serializers import (
+    CancelSerializer,
     CommentInputSerializer,
     CommentSerializer,
     CreateRequestSerializer,
     DecisionSerializer,
     InboxItemSerializer,
+    InboxSerializer,
     RequestDetailSerializer,
     RequestListSerializer,
     SubmitSerializer,
@@ -145,30 +148,27 @@ def _action(name: str, operation_id: str, request_serializer: Any = None) -> typ
                     actor=self.membership, request_id=pk, revision=submitted.validated_data["revision"]
                 )
                 return self.detail(pk)
-            getattr(services, name)(actor=self.membership, request_id=pk)
-            return self.detail(pk)
+            if name == "cancel":
+                cancel = CancelSerializer(data=request.data)
+                cancel.is_valid(raise_exception=True)
+                services.cancel(actor=self.membership, request_id=pk, reason=cancel.validated_data["reason"])
+                return self.detail(pk)
+            raise AssertionError(f"unknown action {name}")  # pragma: no cover
 
     ActionView.__name__ = ActionView.__qualname__ = f"Request{name.title()}View"
     return ActionView
 
 
 SubmitView = _action("submit", "requests_submit", SubmitSerializer)
-CancelView = _action("cancel", "requests_cancel")
+CancelView = _action("cancel", "requests_cancel", CancelSerializer)
 ApproveView = _action("approve", "requests_approve", DecisionSerializer)
 RejectView = _action("reject", "requests_reject", DecisionSerializer)
 DuplicateView = _action("duplicate", "requests_duplicate")
 
 
-class CommentRateThrottle(ScopedRateThrottle):
-    """Throttles posting comments only; reading them is not limited."""
-
-    def allow_request(self, request: HttpRequest, view: Any) -> bool:
-        return request.method != "POST" or super().allow_request(request, view)
-
-
 @extend_schema(parameters=[ORG_HEADER])
 class CommentsView(_RequestViewBase):
-    throttle_classes = [CommentRateThrottle]
+    throttle_classes = [CreateRateThrottle]  # posting comments only; reading is not limited
     throttle_scope = "comment"
 
     @extend_schema(responses=CommentSerializer(many=True), operation_id="requests_comments_list")
@@ -210,7 +210,23 @@ class TimelineView(_RequestViewBase):
 class InboxView(TenantScopedMixin, APIView):
     permission_classes = [permissions.IsAuthenticated, IsOrgMember]
 
-    @extend_schema(responses=InboxItemSerializer(many=True), operation_id="inbox_list")
+    LIMIT = 200
+
+    @extend_schema(responses=InboxSerializer, operation_id="inbox_list")
     def get(self, request: HttpRequest) -> Response:
-        tasks = policy.inbox_tasks(self.membership)[:200]
-        return Response(InboxItemSerializer(tasks, many=True, context={"membership": self.membership}).data)
+        queryset = policy.inbox_tasks(self.membership)
+        tasks = list(queryset[: self.LIMIT])
+        # One query for the step totals of every listed request (shown as "step N of M").
+        version_ids = {t.request.template_version_id for t in tasks}
+        totals = dict(
+            Step.objects.filter(version_id__in=version_ids)
+            .values("version_id")
+            .annotate(n=Count("id"))
+            .values_list("version_id", "n")
+        )
+        for task in tasks:
+            version = task.request.template_version_id  # always pinned for open tasks
+            task.request.step_count = totals.get(version, 0) if version else 0  # type: ignore[attr-defined]
+        count = len(tasks) if len(tasks) < self.LIMIT else queryset.count()
+        items = InboxItemSerializer(tasks, many=True, context={"membership": self.membership}).data
+        return Response({"count": count, "results": items, "limit": self.LIMIT})

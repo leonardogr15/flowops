@@ -32,6 +32,7 @@ from apps.audit.service import record
 from common.errors import Conflict
 
 from .models import ROLE_RANK, Invitation, Membership, Organization, Role
+from .signals import membership_changed
 
 logger = logging.getLogger(__name__)
 INVITATION_TTL = timedelta(days=7)
@@ -285,6 +286,7 @@ def change_role(*, actor: Membership, member_id: UUID, role: str) -> Membership:
         target_id=target.pk,
         data={"email": target.user.email, "from": previous, "to": role},
     )
+    membership_changed.send(sender=Membership, organization=actor.organization)
     return target
 
 
@@ -308,3 +310,4 @@ def remove_member(*, actor: Membership, member_id: UUID) -> None:
         data={"email": target.user.email, "role": target.role},
     )
     target.delete()
+    membership_changed.send(sender=Membership, organization=actor.organization)
