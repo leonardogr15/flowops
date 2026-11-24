@@ -32,6 +32,16 @@ their own request.
   mandatory comment; the task and audit event are marked `fallback`. Submit is refused with `422` if a
   step has no possible approver at that moment.
 
+- **When people leave (added 2026-11-24).** Removing a member never cancels or reassigns their
+  requests: history is kept and approvers keep deciding. An admin or owner may cancel a request in
+  review whose requester is no longer a member, with a mandatory reason written to the audit log
+  (`requester_left`); the actor's membership is locked and re-read after the request lock (lock
+  order: request -> actor membership; nothing takes them the other way round), and the exception
+  never applies to requests of current members. Accepted risk: if the former requester rejoins in
+  the same instant, the cancellation may still apply; it is audited with the admin and reason. After any removal or role change, admins are notified once about
+  each open task that no longer has a regular approver. The organizations app announces the change
+  with a `membership_changed` signal, so it does not depend on the requests app.
+
 ## Alternatives considered
 
 - **Optimistic locking only (version column):** fewer locks, but every writer needs retry logic and

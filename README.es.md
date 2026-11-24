@@ -4,7 +4,7 @@
 
 Flujos de aprobación para equipos de operaciones de múltiples organizaciones: las solicitudes de compras, gastos y accesos llegan a los responsables adecuados, en orden y con un registro de cada decisión.
 
-> **Estado: desarrollo inicial.** Las cuentas, las organizaciones, la gestión de personas, los flujos de aprobación versionados y el ciclo completo de una solicitud (envío, aprobación, rechazo y auditoría) funcionan de principio a fin. Consulta el [Plan de desarrollo](#plan-de-desarrollo).
+> **Estado: MVP completo, sin desplegar.** Las cuentas, las organizaciones, la gestión de personas, los flujos de aprobación versionados y el ciclo completo de una solicitud (envío, aprobación, rechazo y auditoría) funcionan de principio a fin y se ejecutan en local con un solo comando. Consulta el [Plan de desarrollo](#plan-de-desarrollo).
 
 ![Django](https://img.shields.io/badge/Django-6.1-0C4B33) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791) ![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue)
 
@@ -18,7 +18,8 @@ Flujos de aprobación para equipos de operaciones de múltiples organizaciones: 
 - **Gestión de miembros.** Cambia roles, elimina miembros o abandona una organización. Siempre queda al menos un propietario, incluso con cambios simultáneos.
 - **Plantillas de flujo.** Define quién aprueba cada tipo de solicitud y en qué orden, con un constructor visual de pasos y una vista previa de la ruta en tiempo real. Las plantillas tienen versiones: los administradores editan un borrador y lo publican, las versiones publicadas no cambian y los miembros solo ven las rutas publicadas.
 - **Solicitudes y aprobaciones.** Crea un borrador y envíalo; sigue, paso a paso, la versión del flujo con la que se envió. Los aprobadores deciden desde su bandeja, un rechazo exige un motivo y una solicitud rechazada puede duplicarse como borrador nuevo. Nadie puede aprobar su propia solicitud, sea cual sea su rol. Si dos personas deciden el mismo paso a la vez, solo cuenta una decisión y la otra persona recibe un aviso.
-- **Decisión de un administrador.** Si ya nadie puede decidir un paso (el aprobador se fue o cambió de rol), un administrador distinto del solicitante puede decidirlo con un comentario obligatorio, que queda registrado como decisión de administrador.
+- **Decisión de un administrador.** Si ya nadie puede decidir un paso (el aprobador se fue o cambió de rol), un administrador distinto del solicitante puede decidirlo con un comentario obligatorio, que queda registrado como decisión de administrador. Los administradores reciben un aviso cuando un paso se queda sin ningún aprobador posible.
+- **Personas que se van.** Sus solicitudes se conservan y los aprobadores pueden seguir decidiéndolas. Un administrador puede cancelar una de esas solicitudes mientras está en revisión, con un motivo obligatorio que queda en la auditoría; las solicitudes de miembros activos solo las cancela quien las creó.
 - **Registro de auditoría.** Los cambios en solicitudes, las decisiones, los comentarios y los cambios de miembros y de flujos quedan en un registro de solo inserción: por solicitud para quien puede verla y de toda la organización para los administradores.
 - **Bandeja y notificaciones.** Los pasos que esperan tu decisión, un contador en la navegación y notificaciones en la aplicación sobre asignaciones, resultados y comentarios.
 - **Aplicación web.** Interfaz adaptable en React con estados de carga, ausencia de datos, error y permisos, navegación por teclado y comprobaciones automatizadas de accesibilidad.
@@ -67,7 +68,7 @@ cd flowops
 make demo   # crea .env con secretos locales aleatorios, compila, inicia y carga datos de demostración
 ```
 
-Sin `make` (por ejemplo, en Windows), ejecuta directamente los mismos pasos:
+`make` usa `python3`, `python` o `py`, el que exista. Sin `make` (por ejemplo, en Windows sin herramientas adicionales), ejecuta directamente los mismos pasos:
 
 ```bash
 python scripts/make_env.py
@@ -111,17 +112,21 @@ Todas las rutas están bajo `/api/v1/`. Los métodos no seguros requieren la cab
 | `GET /org/workflow-templates` · `GET /org/workflow-templates/{id}` | sesión | sí | solo publicados | sí | sí |
 | `POST /org/workflow-templates` · `PATCH …/{id}` · `PUT …/{id}/draft` · `POST …/{id}/publish` | sesión | sí | no (403) | sí | sí |
 | `GET /org/requests` (`scope`, `status`) · `GET /org/requests/{id}` | sesión | sí | propias y en las que participa² | todas | todas |
-| `POST /org/requests` · `PATCH /org/requests/{id}` (borrador) · `POST …/{id}/submit` · `…/cancel` · `…/duplicate` | sesión | sí | solicitante | solicitante | solicitante |
+| `POST /org/requests` · `PATCH /org/requests/{id}` (borrador) · `POST …/{id}/submit` · `…/cancel`⁴ · `…/duplicate` | sesión | sí | solicitante | solicitante | solicitante |
 | `POST /org/requests/{id}/approve` · `…/reject` (cuerpo: `step`, `comment`) | sesión | sí | elegible³ | elegible³ | elegible³ |
 | `GET` y `POST /org/requests/{id}/comments` · `GET …/{id}/timeline` | sesión | sí | si puede verla | sí | sí |
-| `GET /org/inbox` · `GET /org/notifications` · `GET …/unread` · `POST …/{id}/read` | sesión | sí | propias | propias | propias |
+| `GET /org/inbox`⁵ · `GET /org/notifications` · `GET …/unread` · `POST …/{id}/read` | sesión | sí | propias | propias | propias |
 | `GET /org/audit-events` | sesión | sí | no (403) | sí | sí |
 
 ¹ Los administradores no pueden otorgar, cambiar ni quitar el rol de propietario; solo los propietarios pueden. El último propietario nunca puede degradarse ni eliminarse (`409`).
 
 ² Solicitudes que el miembro creó o en las que es o fue aprobador. Las demás devuelven `404`.
 
-³ El miembro indicado, o cualquiera con el rol del paso o superior; nunca el solicitante. Si nadie es elegible, deciden los administradores y propietarios distintos del solicitante, con un comentario obligatorio. Un `step` o una `revision` desactualizados devuelven `409`; enviar cuando un paso no tiene ningún aprobador posible devuelve `422`.
+³ El miembro indicado, o cualquiera con el rol del paso o superior; nunca el solicitante. Si nadie es elegible, deciden los administradores y propietarios distintos del solicitante, con un comentario obligatorio. Un `step` o una `revision` desactualizados devuelven `409`; enviar cuando un paso no tiene ningún aprobador posible devuelve `422` (`urn:flowops:problem:no_eligible_approver`).
+
+⁴ Los administradores y propietarios también pueden cancelar una solicitud en revisión cuyo solicitante ya no es miembro, con un `reason` obligatorio que se escribe en la auditoría. Con solicitudes de miembros activos reciben `403`.
+
+⁵ Devuelve `{count, results, limit}`: cuenta todas las tareas abiertas que esperan tu decisión y lista las `limit` (200) más antiguas.
 
 Códigos de estado: `401` si no has iniciado sesión, `403` si tu rol no tiene permiso, `404` para organizaciones a las que no perteneces (indistinguibles de las que no existen) y `400` si falta la cabecera de organización. Los errores usan `application/problem+json`.
 
@@ -136,6 +141,8 @@ Códigos de estado: `401` si no has iniciado sesión, `403` si tu rol no tiene p
 | Límite de intentos de acceso por (IP del cliente, correo) y por IP para todos los correos; número de proxies de confianza para evitar la suplantación de `X-Forwarded-For`; hashes de los correos en las claves de limitación | `apps/accounts/throttles.py`, `NUM_PROXIES` |
 | Las solicitudes entre organizaciones devuelven 404; las pruebas de aislamiento cubren cada ruta, incluidos identificadores de objetos de otra organización | `apps/organizations/tests/test_isolation.py` |
 | Tokens de invitación: 256 bits aleatorios, guardados solo como SHA-256, de un solo uso, caducan a los 7 días y están ligados al correo invitado; reinvitar revoca el enlace anterior | `apps/organizations/members.py` |
+| Los tokens de invitación nunca llegan a los registros: los registros de Django, el registro de acceso de nginx (ruta y `Referer`) y los mensajes de error muestran `[redacted]`; el registro de acceso de gunicorn está desactivado (Django registra cada solicitud). La CI falla si aparece un token en los registros del entorno de extremo a extremo | `common/redaction.py`, `frontend/nginx.conf`, `.github/workflows/ci.yml` |
+| Enviar invitaciones (30 por hora) y crear organizaciones (5 por hora) tienen límite por usuario, para que una cuenta no sirva para enviar correos masivos; al superarlo se responde `429` con `Retry-After` | `common/throttling.py`, `config/settings/base.py` |
 | Los cambios de rol vuelven a leer al miembro que actúa y bloquean las filas de propietarios, de modo que degradaciones simultáneas no pueden dejar la organización sin propietario | `apps/organizations/members.py` |
 | Las transiciones de una solicitud se ejecutan con bloqueos de fila en un orden fijo (plantilla, solicitud, tarea abierta). Las decisiones indican el paso actual y el envío la revisión actual, así que dobles clics, reintentos y decisiones simultáneas se aplican una sola vez | `apps/requests/services.py`, ADR-0006 |
 | El solicitante nunca decide su propia solicitud, tampoco si es administrador o propietario; la decisión de un administrador exige un comentario y queda marcada en la auditoría | `apps/requests/policy.py` |
@@ -159,12 +166,12 @@ Para informar de una vulnerabilidad, consulta [SECURITY.md](SECURITY.md).
 | Análisis estático y tipos del backend | `make lint-api` | ruff, mypy (modo estricto, con complementos de Django y DRF) |
 | Frontend | `make test-web` | Inicio de sesión, redirecciones, cambio de organización, configuración, miembros y roles, invitaciones y aceptación, constructor y publicación de flujos, solicitudes (crear, enviar, aprobar, rechazar, decisión simultánea perdida), bandeja, notificaciones, registro de auditoría, comprobaciones de accesibilidad con axe |
 | Análisis estático y tipos del frontend | `make lint-web` | oxlint (las advertencias provocan fallos), TypeScript estricto |
-| Extremo a extremo | `make e2e-up` y después `make e2e` con `DEMO_PASSWORD` exportada | Playwright con tamaños de pantalla de escritorio y móvil contra los servicios reales: inicio de sesión, invitar y unirse, crear y publicar un flujo, una solicitud aprobada por Raj, Adam y Olivia con su auditoría completa, rechazo y duplicado, autoaprobación rechazada en la interfaz y en la API, y dos administradores decidiendo el mismo paso a la vez |
+| Extremo a extremo | `make e2e-up` y después `make e2e` | Playwright con tamaños de pantalla de escritorio y móvil contra los servicios reales: inicio de sesión, sesión caducada que vuelve a la misma página, invitar y unirse, crear y publicar un flujo, una solicitud aprobada por Raj, Adam y Olivia con su auditoría completa, rechazo y duplicado, autoaprobación rechazada en la interfaz y en la API, y dos administradores decidiendo el mismo paso a la vez |
 | Contrato | `make schema-check` | El esquema OpenAPI versionado coincide con el código; los tipos TypeScript generados coinciden con el esquema (CI) |
 
 El flujo de CI (`.github/workflows/ci.yml`) ejecuta estas comprobaciones con cada envío de cambios y solicitud de integración, además de ejecutar gitleaks sobre todo el historial.
 
-`make e2e-up` levanta los servicios con `docker-compose.e2e.yml`: la API usa la imagen de producción con gunicorn, sin montar el código fuente ni el recargador automático de desarrollo, así que editar archivos durante las pruebas no puede reiniciar el servidor a mitad de una prueba.
+`make e2e-up` levanta un proyecto Compose separado (`flowops-e2e`, con su propia base de datos) a partir de `docker-compose.e2e.yml`, así que los datos de prueba nunca se mezclan con la demo; detén antes la demo (`make down`), porque ambos usan los mismos puertos. La API usa la imagen de producción con gunicorn, sin montar el código fuente ni el recargador automático de desarrollo, así que editar archivos durante las pruebas no puede reiniciar el servidor a mitad de una prueba. `make e2e` lee `DEMO_PASSWORD` de `.env`. `make e2e-reset` borra solo la base de datos de extremo a extremo. Ejecuta `make web-install` una vez antes de los objetivos de frontend y de extremo a extremo; `make help` lista todos los objetivos.
 
 ## Estructura del proyecto
 

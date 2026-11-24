@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
 /**
  * Requests and approvals against the composed stack seeded with `make demo`.
@@ -16,8 +16,15 @@ test.beforeAll(() => {
   if (password.length < 12) throw new Error("Set DEMO_PASSWORD to the value used by `make demo`.");
 });
 
+// Every scenario opens one browser context per person; they are closed after each test (TC-03).
+const contexts: BrowserContext[] = [];
+test.afterEach(async () => {
+  await Promise.all(contexts.splice(0).map((context) => context.close()));
+});
+
 async function as(browser: Browser, email: string): Promise<Page> {
   const context = await browser.newContext({ ...test.info().project.use });
+  contexts.push(context);
   // Raj also belongs to another organization; all scenarios happen in Orbital Supplies.
   await context.addInitScript(() => localStorage.setItem("flowops.activeOrganization", "orbital-supplies"));
   const page = await context.newPage();

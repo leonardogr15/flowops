@@ -90,10 +90,8 @@ jobs:
           test "$(grep -c '^LOGIN_THROTTLE_RATE=100/min$' .env)" = 1
           test "$(grep -c '^LOGIN_IP_THROTTLE_RATE=500/min$' .env)" = 1
           test -z "$(cut -d= -f1 .env | grep -v '^#' | grep . | sort | uniq -d)"
-      - name: Start the stack (production API image, no autoreload)
-        run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
-      - name: Seed demo data
-        run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T api python manage.py seed_demo
+      - name: Start the stack (own project, production API image, no autoreload)
+        run: make e2e-up
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -104,6 +102,17 @@ jobs:
           npm ci --no-fund --no-audit
           npx playwright install --with-deps chromium
           DEMO_PASSWORD="$(grep '^DEMO_PASSWORD=' ../.env | cut -d= -f2)" npx playwright test
+      - name: No invitation token reaches the logs (Django, gunicorn, nginx)
+        # The suite opens invitation links and calls the token endpoints: the logs must show them
+        # redacted, and never a raw token.
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color api web > stack.log
+          grep -q '/invite/\[redacted\]' stack.log
+          grep -q '/api/v1/invitations/\[redacted\]' stack.log
+          if grep -Eq '/(api/v1/invitations|invite)/[A-Za-z0-9_-]{20,}' stack.log; then
+            echo "::error::An invitation token was written to the logs"
+            exit 1
+          fi
       - if: failure()
         run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs api web --tail 200
       - if: failure()

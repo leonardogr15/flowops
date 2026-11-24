@@ -1,10 +1,18 @@
-# Local and CI end-to-end testing only; never deploy it (it keeps the development settings and
-# demo data from .env). End-to-end override: the API runs the production image (gunicorn, several worker processes)
-# with the code baked in, without the bind mount or the autoreloader. Editing files while
-# Playwright runs can no longer restart the server mid-test, and parallel sign-ins (password
-# hashing is CPU-bound) are not serialized behind one development-server process.
-# See "Testing" in README.md. Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+# End-to-end override, for local and CI testing only. Never deploy it: it keeps the development
+# settings and demo data from .env.
+#
+# - Own Compose project ("flowops-e2e"), so its database volume is separate: test runs never add
+#   members, workflows or requests to the demo you use with `make demo`. Uses the same ports, so stop
+#   the demo stack first (`make down`).
+# - The API runs the production image (gunicorn, several worker processes) with the code baked in,
+#   without the bind mount or the autoreloader: editing files while Playwright runs cannot restart the
+#   server mid-test, and parallel sign-ins (password hashing is CPU-bound) are not serialized.
+# - Email stays in memory: the development console backend prints invitation links, and CI checks
+#   that no invitation token ever reaches the logs.
+#
+# See "Testing" in README.md. Usage: make e2e-up
+name: flowops-e2e
+
 services:
   api:
     # Own image name, so the development image (with test tools) is not replaced by this one.
@@ -12,7 +20,9 @@ services:
     build:
       context: ./backend
       target: runtime
+    environment:
+      EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
     command: >
       sh -c "python manage.py migrate --noinput &&
-             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --no-control-socket --access-logfile -"
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --no-control-socket"
     volumes: !reset []
