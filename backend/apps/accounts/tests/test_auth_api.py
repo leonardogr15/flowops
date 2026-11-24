@@ -135,3 +135,18 @@ def test_spoofed_forwarded_for_does_not_bypass_the_throttle(
         assert statuses[5] == 429
     finally:
         api_settings.NUM_PROXIES = original  # type: ignore[misc]
+
+
+def test_one_ip_cannot_spray_many_accounts(api: APIClient, make_user: Callable[..., User]) -> None:
+    token = csrf(api)
+    statuses = [
+        post_login(api, f"victim{i}@example.test", "wrong-password-123", token).status_code  # type: ignore[attr-defined]
+        for i in range(31)
+    ]
+    assert statuses[:30] == [401] * 30
+    assert statuses[30] == 429
+
+
+def test_very_long_email_is_rejected_cleanly(api: APIClient) -> None:
+    response = post_login(api, "a" * 5000 + "@example.test", "x", csrf(api))
+    assert response.status_code == 400  # type: ignore[attr-defined]

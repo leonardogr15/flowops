@@ -133,7 +133,10 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "common.errors.problem_details_handler",
     "DEFAULT_PAGINATION_CLASS": "common.pagination.DefaultCursorPagination",
     "PAGE_SIZE": 25,
-    "DEFAULT_THROTTLE_RATES": {"login": env("LOGIN_THROTTLE_RATE", "5/min")},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": env("LOGIN_THROTTLE_RATE", "5/min"),
+        "login_ip": env("LOGIN_IP_THROTTLE_RATE", "30/min"),
+    },
     "UNAUTHENTICATED_USER": None,
     # Number of trusted reverse proxies in front of Django. Throttling uses the client IP that the
     # last trusted proxy appended; with 0, X-Forwarded-For is ignored and REMOTE_ADDR is used.

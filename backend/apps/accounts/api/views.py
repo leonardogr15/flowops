@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import User
-from ..throttles import LoginRateThrottle
+from ..throttles import LoginIPRateThrottle, LoginRateThrottle
 from .serializers import LoginSerializer, UserSerializer
 
 CsrfResponse = inline_serializer("CsrfResponse", {"csrfToken": serializers.CharField()})
@@ -35,7 +35,7 @@ class CsrfView(APIView):
 @method_decorator(csrf_protect, name="dispatch")  # DRF skips CSRF for anonymous users; login must not
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [LoginRateThrottle]
+    throttle_classes = [LoginRateThrottle, LoginIPRateThrottle]
     tenant_scoped = False
 
     @extend_schema(request=LoginSerializer, responses={200: UserSerializer}, operation_id="auth_login")

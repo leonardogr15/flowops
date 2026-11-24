@@ -18,7 +18,7 @@ clients yet.
   `csrftoken` cookie (from `GET /api/v1/auth/csrf`) and sends `X-CSRFToken`.
 - **Argon2** password hashing; minimum length 12 plus Django's common-password checks.
 - **One generic error** for unknown email, wrong password and inactive account.
-- **Throttling** of login attempts per (client IP, email) pair, default 5 per minute, backed by Redis.
+- **Throttling** of login attempts per (client IP, email) pair (default 5 per minute) and per client IP across all emails (default 30 per minute, against password spraying), backed by Redis. Emails are hashed in throttle keys.
 - `login()` rotates the session key (session fixation protection). Unauthenticated requests get 401
   (custom `SessionAuthentication401`), forbidden actions get 403, other tenants get 404.
 
