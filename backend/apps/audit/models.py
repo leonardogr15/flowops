@@ -35,9 +35,23 @@ class AuditEvent(models.Model):
     data = models.JSONField(default=dict, blank=True)
     request_id = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Position of the event within its request (1, 2, 3...), assigned under the request's row lock
+    # (AUD-01, ADR-0007). Only for target_type "request"; NULL for events written before it existed.
+    request_seq = models.PositiveIntegerField(null=True, blank=True, editable=False)
 
     class Meta:
         ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["target_id", "request_seq"],
+                condition=models.Q(request_seq__isnull=False),
+                name="audit_request_seq_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(request_seq__isnull=True) | models.Q(target_type="request"),
+                name="audit_request_seq_only_for_requests",
+            ),
+        ]
         indexes = [
             models.Index(fields=["organization", "-created_at"], name="audit_org_created_idx"),
             models.Index(fields=["organization", "target_type", "target_id"], name="audit_org_target_idx"),

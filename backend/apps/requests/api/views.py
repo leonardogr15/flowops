@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from django.db.models import Count, Prefetch, QuerySet
+from django.db.models import Count, F, Prefetch, QuerySet
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import NotFound
@@ -202,7 +202,7 @@ class TimelineView(_RequestViewBase):
             raise NotFound("Request not found.")
         events = AuditEvent.objects.filter(
             organization=self.organization, target_type="request", target_id=pk
-        ).order_by("created_at", "id")
+        ).order_by(F("request_seq").asc(nulls_first=True), "created_at", "id")  # AUD-01
         return Response(TimelineEventSerializer(events, many=True).data)
 
 

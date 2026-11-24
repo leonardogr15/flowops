@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
+from django.db.models import F
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
@@ -113,15 +114,36 @@ def _clean(fields: RequestFields) -> RequestFields:
     )
 
 
-def _audit(actor: Membership, verb: str, req: Request, **data: Any) -> None:
+def next_event_seq(req: Request) -> int:
+    """Advance and return the request's event counter (AUD-01).
+
+    The UPDATE takes the request's row lock (already held by every service that changes a request),
+    so concurrent writers of the same request are numbered in commit order, and a rollback undoes
+    the increment together with the event: no gaps, no duplicates. Independent of the wall clock.
+    """
+    advanced = Request.objects.filter(pk=req.pk).update(event_seq=F("event_seq") + 1)
+    if advanced != 1:  # pragma: no cover - the request row exists inside this transaction
+        raise NotFound("Request not found.")
+    # Same transaction, row now locked by our UPDATE: this read sees exactly our increment.
+    req.event_seq = Request.objects.filter(pk=req.pk).values_list("event_seq", flat=True).get()
+    return req.event_seq
+
+
+def record_request_event(actor: Membership, req: Request, verb: str, data: dict[str, Any]) -> None:
+    """The only way request events are written: numbered, then recorded in the same transaction."""
     record(
         organization=actor.organization,
         actor=actor.user,
         verb=verb,
         target_type="request",
         target_id=req.pk,
-        data={"status": req.status, **data},
+        data=data,
+        request_seq=next_event_seq(req),
     )
+
+
+def _audit(actor: Membership, verb: str, req: Request, **data: Any) -> None:
+    record_request_event(actor, req, verb, {"status": req.status, **data})
 
 
 # ----------------------------------------------------------------------------- drafts
@@ -335,13 +357,11 @@ def decide(*, actor: Membership, request_id: UUID, step: int, approve: bool, com
     task.comment = comment
     task.fallback = mode == "fallback"
     task.save()
-    record(
-        organization=actor.organization,
-        actor=actor.user,
-        verb="task.approved" if approve else "task.rejected",
-        target_type="request",
-        target_id=req.pk,
-        data={"step": task.step_order, "step_name": task.step_name, "fallback": task.fallback},
+    record_request_event(
+        actor,
+        req,
+        "task.approved" if approve else "task.rejected",
+        {"step": task.step_order, "step_name": task.step_name, "fallback": task.fallback},
     )
 
     if not approve:
@@ -431,14 +451,7 @@ def add_comment(*, actor: Membership, request_id: UUID, body: str) -> Comment:
     if not text:
         raise APIValidationError({"body": ["Write a comment first."]})
     comment = Comment.objects.create(organization=req.organization, request=req, author=actor.user, body=text)
-    record(
-        organization=actor.organization,
-        actor=actor.user,
-        verb="comment.added",
-        target_type="request",
-        target_id=req.pk,
-        data={"comment_id": str(comment.pk)},
-    )
+    record_request_event(actor, req, "comment.added", {"comment_id": str(comment.pk)})
     recipients = {req.requester_id} | set(
         ApprovalTask.objects.filter(request=req, decided_by__isnull=False).values_list(
             "decided_by_id", flat=True

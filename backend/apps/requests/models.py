@@ -7,6 +7,8 @@ order; at most one task is open per request.
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -44,6 +46,19 @@ class Request(TenantModel):
     duplicated_from = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
+    # Number of the last audit event of this request (AUD-01, ADR-0007). Only advanced by
+    # services.next_event_seq with an atomic UPDATE under the request's row lock; never by save().
+    event_seq = models.PositiveIntegerField(default=0, editable=False)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        # A full save() of an instance loaded earlier must not write back an old event_seq over
+        # the value the database advanced in the meantime.
+        if not self._state.adding:
+            fields = kwargs.get("update_fields")
+            if fields is None:
+                fields = [f.name for f in self._meta.concrete_fields if not f.primary_key]
+            kwargs["update_fields"] = [name for name in fields if name != "event_seq"]
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ("-created_at",)
