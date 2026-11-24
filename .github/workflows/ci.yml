@@ -81,7 +81,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Create CI environment file
-        run: python3 scripts/make_env.py
+        # The suite signs in as the same demo users many times per minute; throttling itself is
+        # covered by backend tests, so the end-to-end stack uses higher limits.
+        run: |
+          python3 scripts/make_env.py
+          printf 'LOGIN_THROTTLE_RATE=100/min
+LOGIN_IP_THROTTLE_RATE=500/min
+' >> .env
       - name: Build the production API image
         run: docker build --target runtime -t flowops-api:ci backend
       - name: Start the stack
