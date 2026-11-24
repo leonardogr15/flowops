@@ -29,8 +29,8 @@ class MyMembershipSerializer(serializers.ModelSerializer[Membership]):
 
     class Meta:
         model = Membership
-        fields = ("id", "role", "organization", "created_at")
-        read_only_fields = fields
+        fields: tuple[str, ...] = ("id", "role", "organization", "created_at")
+        read_only_fields: tuple[str, ...] = fields
 
 
 class MemberSerializer(serializers.ModelSerializer[Membership]):
@@ -104,3 +104,13 @@ class AcceptInvitationSerializer(serializers.Serializer[None]):
 
 class ChangeRoleSerializer(serializers.Serializer[None]):
     role = serializers.ChoiceField(choices=Role.choices)
+
+
+class AcceptedInvitationSerializer(MyMembershipSerializer):
+    """The new membership plus the signed-in user (the account may have just been created)."""
+
+    user = UserSerializer(read_only=True)
+
+    class Meta(MyMembershipSerializer.Meta):
+        fields = (*MyMembershipSerializer.Meta.fields, "user")
+        read_only_fields = fields

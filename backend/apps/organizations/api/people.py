@@ -31,6 +31,7 @@ from ..members import (
 from ..permissions import IsOrgAdmin, IsOrgMember
 from ..tenancy import TenantScopedMixin
 from .serializers import (
+    AcceptedInvitationSerializer,
     AcceptInvitationSerializer,
     ChangeRoleSerializer,
     CreateInvitationSerializer,
@@ -49,6 +50,7 @@ class InvitationsView(TenantScopedMixin, generics.GenericAPIView[Any]):
 
     permission_classes = [permissions.IsAuthenticated, IsOrgAdmin]
     serializer_class = InvitationSerializer
+    pagination_class = None  # bounded: one open invitation per email
 
     @extend_schema(responses=InvitationSerializer(many=True))
     def get(self, request: Request) -> Response:
@@ -127,7 +129,7 @@ class AcceptInvitationView(APIView):
 
     @extend_schema(
         request=AcceptInvitationSerializer,
-        responses={201: MyMembershipSerializer},
+        responses={201: AcceptedInvitationSerializer},
         operation_id="invitations_accept",
         description="Signed-in users accept with an empty body. New users send full_name and password; "
         "the account is created and signed in.",

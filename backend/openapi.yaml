@@ -114,7 +114,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MyMembership'
+                $ref: '#/components/schemas/AcceptedInvitation'
           description: ''
   /api/v1/org:
     get:
@@ -175,18 +175,6 @@ paths:
           type: string
         description: Slug of the active organization.
         required: true
-      - name: cursor
-        required: false
-        in: query
-        description: The pagination cursor value.
-        schema:
-          type: string
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
       tags:
       - v1
       security:
@@ -196,7 +184,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedInvitationList'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invitation'
           description: ''
     post:
       operationId: v1_org_invitations_create
@@ -568,6 +558,37 @@ components:
           writeOnly: true
           default: ''
           maxLength: 128
+    AcceptedInvitation:
+      type: object
+      description: The new membership plus the signed-in user (the account may have
+        just been created).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        organization:
+          allOf:
+          - $ref: '#/components/schemas/Organization'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - organization
+      - role
+      - user
     ApproverTypeEnum:
       enum:
       - user
@@ -861,25 +882,6 @@ components:
           maxLength: 120
       required:
       - name
-    PaginatedInvitationList:
-      type: object
-      required:
-      - results
-      properties:
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?cursor=cD00ODY%3D"
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Invitation'
     PaginatedMemberList:
       type: object
       required:
