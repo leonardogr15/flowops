@@ -143,6 +143,9 @@ REST_FRAMEWORK = {
         "login_ip": env("LOGIN_IP_THROTTLE_RATE", "30/min"),
         "invitation": env("INVITATION_THROTTLE_RATE", "30/min"),
         "comment": env("COMMENT_THROTTLE_RATE", "30/min"),
+        # Per user: each invitation sends an email; each organization is a new tenant (SEC-02).
+        "invitation_create": env("INVITATION_CREATE_THROTTLE_RATE", "30/hour"),
+        "organization_create": env("ORGANIZATION_CREATE_THROTTLE_RATE", "5/hour"),
     },
     "UNAUTHENTICATED_USER": None,
     # Number of trusted reverse proxies in front of Django. Throttling uses the client IP that the
@@ -177,8 +180,14 @@ X_FRAME_OPTIONS = "DENY"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {"redact": {"()": "common.redaction.RedactFilter"}},
     "formatters": {"json": {"()": "common.logging.JSONFormatter"}},
-    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "json"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "json", "filters": ["redact"]}},
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
-    "loggers": {"django.server": {"level": "WARNING"}},
+    "loggers": {
+        # Replaces Django's default plain-text console handler (active when DEBUG is on), which
+        # would print paths such as "Not Found: /api/v1/invitations/<token>" unredacted (SEC-01).
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.server": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
 }
