@@ -1,61 +1,56 @@
 # FlowOps
 
-Multi-tenant approval workflows for operations teams: purchases, expenses and access requests go to
-the right approvers, in order, with a record of every decision.
+Flujos de aprobación para equipos de operaciones de múltiples organizaciones: las solicitudes de compras, gastos y accesos llegan a los responsables adecuados, en orden y con un registro de cada decisión.
 
-> **Status: early development.** This release covers the foundation: accounts, organizations,
-> tenant isolation and role-based permissions, with a working web app. Approval workflows are the
-> next milestone; see [Roadmap](#roadmap).
+> **Estado: desarrollo inicial.** Esta versión incluye cuentas, organizaciones, aislamiento entre organizaciones y permisos por rol, con una aplicación web funcional. Los flujos de aprobación son el siguiente hito; consulta el [Plan de desarrollo](#plan-de-desarrollo).
 
-![Django](https://img.shields.io/badge/Django-6.1-0C4B33) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791) ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Django](https://img.shields.io/badge/Django-6.1-0C4B33) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791) ![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue)
 
-## What works today
+## Funcionalidades disponibles
 
-- **Sign in** with email and password. Sessions are server-side, CSRF-protected (login included), and failed attempts are throttled.
-- **Organizations and roles.** Create organizations, switch between the ones you belong to, and see your role (owner, admin or member).
-- **Tenant isolation.** Every request runs in the context of one organization. Data from other organizations is unreachable: such requests get `404`.
-- **Role-based permissions.** Members read; admins and owners manage organization settings.
-- **Web app.** Responsive React UI with loading, empty, error and permission states, keyboard navigation and automated accessibility checks.
-- **Operational basics.** Health and readiness endpoints, JSON logs with request IDs, RFC 9457 error responses, and OpenAPI docs at `/api/docs/`.
+- **Inicio de sesión** con correo y contraseña. Sesiones en el servidor, protección CSRF (incluido el inicio de sesión) y limitación de intentos fallidos.
+- **Organizaciones y roles.** Crea organizaciones, cambia entre aquellas a las que perteneces y consulta tu rol (propietario, administrador o miembro).
+- **Aislamiento entre organizaciones.** Cada solicitud se ejecuta en el contexto de una organización. Las solicitudes de datos de otras organizaciones reciben un `404`.
+- **Permisos por rol.** Los miembros pueden consultar; los administradores y propietarios gestionan la configuración de la organización.
+- **Aplicación web.** Interfaz adaptable en React con estados de carga, ausencia de datos, error y permisos, navegación por teclado y comprobaciones automatizadas de accesibilidad.
+- **Operación básica.** Rutas de comprobación de funcionamiento y disponibilidad, registros JSON con identificadores de solicitud, errores según RFC 9457 y documentación OpenAPI en `/api/docs/`.
 
-## Architecture
+## Arquitectura
 
 ```mermaid
 flowchart LR
-    B[Browser<br/>React SPA] -->|same origin| N[nginx<br/>static files + reverse proxy]
+    B[Navegador<br/>SPA en React] -->|mismo origen| N[nginx<br/>archivos estáticos + proxy inverso]
     N -->|/api, /admin, /health| A[Django + DRF<br/>gunicorn]
     A --> P[(PostgreSQL 18)]
-    A --> R[(Redis<br/>cache + throttling)]
+    A --> R[(Redis<br/>caché + limitación de solicitudes)]
 ```
 
-| Layer | Responsibility |
+| Capa | Responsabilidad |
 |---|---|
-| `backend/apps/accounts` | Email-based user model, session login/logout, login throttling |
-| `backend/apps/organizations` | Organizations, memberships, roles, tenant resolution, permissions |
-| `backend/common` | Problem-details errors, request-ID middleware, JSON logging, health checks |
-| `frontend/src` | React app: API client generated from the OpenAPI schema, session and organization context, pages |
+| `backend/apps/accounts` | Usuarios identificados por correo, inicio y cierre de sesión, limitación de intentos de acceso |
+| `backend/apps/organizations` | Organizaciones, membresías, roles, resolución de la organización y permisos |
+| `backend/common` | Errores con detalles del problema, middleware de identificadores de solicitud, registros JSON y comprobaciones de funcionamiento |
+| `frontend/src` | Aplicación React: cliente de API generado desde OpenAPI, contexto de sesión y organización, páginas |
 
-Inside each Django app, **views** handle HTTP only, **services** perform writes inside transactions,
-and **selectors** perform tenant-scoped reads.
+En cada aplicación Django, las **vistas** solo gestionan HTTP, los **servicios** realizan escrituras dentro de transacciones y los **selectores** realizan lecturas limitadas a la organización actual.
 
-### Technical decisions
+### Decisiones técnicas
 
-- [ADR-0001 Multi-tenancy: shared schema, application-enforced isolation](docs/adr/0001-multi-tenancy.md)
-- [ADR-0002 Authentication: server sessions with CSRF for a same-origin SPA](docs/adr/0002-authentication.md)
-- [ADR-0003 Runtime and tooling versions](docs/adr/0003-runtime-and-tooling-versions.md)
+- [ADR-0001 Múltiples organizaciones: esquema compartido y aislamiento aplicado por la aplicación](docs/adr/0001-multi-tenancy.md)
+- [ADR-0002 Autenticación: sesiones en el servidor con CSRF para una SPA del mismo origen](docs/adr/0002-authentication.md)
+- [ADR-0003 Versiones del entorno de ejecución y las herramientas](docs/adr/0003-runtime-and-tooling-versions.md)
 
-## Quick start
+## Inicio rápido
 
-Requirements: Docker with Compose v2, and `make`. Running the frontend tests or the end-to-end tests
-outside Docker also needs Node.js 22+.
+Requisitos: Docker con Compose v2 y `make`. Para ejecutar las pruebas del frontend o de extremo a extremo fuera de Docker, también necesitas Node.js 22 o superior.
 
 ```bash
 git clone https://github.com/leonardogr15/flowops.git
 cd flowops
-make demo   # creates .env with random local secrets, builds, starts, seeds demo data
+make demo   # crea .env con secretos locales aleatorios, compila, inicia y carga datos de demostración
 ```
 
-Without `make` (for example on Windows), run the same steps directly:
+Sin `make` (por ejemplo, en Windows), ejecuta directamente los mismos pasos:
 
 ```bash
 python scripts/make_env.py
@@ -63,99 +58,90 @@ docker compose up -d --build --wait
 docker compose exec api python manage.py seed_demo
 ```
 
-Open <http://localhost:8080>. API docs: <http://localhost:8080/api/docs/>.
+Abre <http://localhost:8080>. Documentación de la API: <http://localhost:8080/api/docs/>.
 
-> The Compose stack is a **local demo**: the API runs Django's development server with `DEBUG`
-> on, ports are bound to `127.0.0.1`, and cookies are not marked `Secure` because it serves plain
-> HTTP. It is not a deployment configuration. The production image (`backend/Dockerfile`, target
-> `runtime`) uses gunicorn with `config.settings.prod` and is built in CI. The Django admin is not
-> exposed through nginx; locally it is at <http://localhost:8000/admin/>.
+> Los servicios de Compose son una **demostración local**: la API utiliza el servidor de desarrollo de Django con `DEBUG` activado, los puertos se vinculan a `127.0.0.1` y las cookies no llevan `Secure` porque se usa HTTP sin cifrar. No es una configuración de despliegue. La imagen de producción (`backend/Dockerfile`, etapa `runtime`) usa gunicorn con `config.settings.prod` y se construye en integración continua (CI). La administración de Django no se expone mediante nginx; localmente está en <http://localhost:8000/admin/>.
 
-### Demo accounts
+### Cuentas de demostración
 
-All demo users share the password stored as `DEMO_PASSWORD` in your generated `.env`. People and
-companies are fictional.
+Todos los usuarios de demostración comparten la contraseña almacenada como `DEMO_PASSWORD` en el archivo `.env` generado. Las personas y empresas son ficticias.
 
-| Email | Organization | Role |
+| Correo electrónico | Organización | Rol |
 |---|---|---|
-| `olivia.owner@flowops.test` | Orbital Supplies Co. | Owner |
-| `adam.admin@flowops.test` | Orbital Supplies Co. | Admin |
-| `maya.member@flowops.test` | Orbital Supplies Co. | Member |
-| `raj.approver@flowops.test` | Orbital Supplies Co. / Kestrel Analytics | Member / Admin |
-| `kim.owner@flowops.test` | Kestrel Analytics | Owner |
+| `olivia.owner@flowops.test` | Orbital Supplies Co. | Propietaria |
+| `adam.admin@flowops.test` | Orbital Supplies Co. | Administrador |
+| `maya.member@flowops.test` | Orbital Supplies Co. | Miembro |
+| `raj.approver@flowops.test` | Orbital Supplies Co. / Kestrel Analytics | Miembro / Administrador |
+| `kim.owner@flowops.test` | Kestrel Analytics | Propietaria |
 
-Signing in as Maya and Adam shows the permission difference on the Settings page. Raj can switch
-between two organizations.
+Inicia sesión como Maya y Adam para ver las diferencias de permisos en la página de configuración. Raj puede cambiar entre dos organizaciones.
 
-## API overview
+## Descripción de la API
 
-All endpoints are under `/api/v1/`. Unsafe methods need the `X-CSRFToken` header. Tenant-scoped
-endpoints need `X-Organization: <organization slug>`.
+Todas las rutas están bajo `/api/v1/`. Los métodos no seguros requieren la cabecera `X-CSRFToken`. Las rutas vinculadas a una organización requieren `X-Organization: <slug de la organización>`.
 
-| Method and path | Auth | Tenant-scoped | Member | Admin | Owner |
+| Método y ruta | Autenticación | Limitado a una organización | Miembro | Administrador | Propietario |
 |---|---|---|:-:|:-:|:-:|
-| `GET /auth/csrf` | none | no | – | – | – |
-| `POST /auth/login` · `POST /auth/logout` · `GET /auth/me` | session | no | – | – | – |
-| `GET /organizations` (mine) · `POST /organizations` (create, become owner) | session | no | – | – | – |
-| `GET /org` | session | yes | yes | yes | yes |
-| `PATCH /org` (rename) | session | yes | no (403) | yes | yes |
-| `GET /org/members` | session | yes | yes | yes | yes |
+| `GET /auth/csrf` | ninguna | no | – | – | – |
+| `POST /auth/login` · `POST /auth/logout` · `GET /auth/me` | sesión | no | – | – | – |
+| `GET /organizations` (mis organizaciones) · `POST /organizations` (crear y convertirse en propietario) | sesión | no | – | – | – |
+| `GET /org` | sesión | sí | sí | sí | sí |
+| `PATCH /org` (cambiar nombre) | sesión | sí | no (403) | sí | sí |
+| `GET /org/members` | sesión | sí | sí | sí | sí |
 
-Status codes: `401` if not signed in, `403` if your role is not allowed, `404` for organizations you
-don't belong to (indistinguishable from ones that don't exist), and `400` if the organization header
-is missing. Errors use `application/problem+json`.
+Códigos de estado: `401` si no has iniciado sesión, `403` si tu rol no tiene permiso, `404` para organizaciones a las que no perteneces (indistinguibles de las que no existen) y `400` si falta la cabecera de organización. Los errores usan `application/problem+json`.
 
-## Security
+## Seguridad
 
-| Control | Where |
+| Control | Ubicación |
 |---|---|
-| Session cookie `HttpOnly`, `SameSite=Lax`, `Secure` outside local dev | `config/settings/base.py` |
-| CSRF on every unsafe request, including login | `apps/accounts/api/views.py` |
-| Argon2 password hashing, minimum length 12 | `config/settings/base.py` |
-| Generic error for unknown email, wrong password and inactive user | `LoginView` |
-| Login throttling per (client IP, email) and per client IP across all emails, with a trusted proxy count so `X-Forwarded-For` can't be spoofed; emails are hashed in throttle keys | `apps/accounts/throttles.py`, `NUM_PROXIES` |
-| Cross-tenant requests return 404; isolation harness covers every endpoint | `apps/organizations/tests/test_isolation.py` |
-| Deny-by-default permissions; role checks on the server, never only in the UI | `apps/organizations/permissions.py` |
-| UUIDv7 public IDs (no sequential IDs in URLs) | `common/models.py` |
-| CSP (including `object-src 'none'`), `X-Frame-Options`, `nosniff`, `Referrer-Policy` on every response; Django admin not routed through the public entrypoint | `frontend/security-headers.conf`, `frontend/nginx.conf` |
-| Containers run as non-root; secrets only via environment | `Dockerfile`s, `.env.example` |
-| Secret scanning of the full git history and the working tree in CI | `.github/workflows/ci.yml` (gitleaks) |
+| Cookie de sesión con `HttpOnly`, `SameSite=Lax` y `Secure` fuera del desarrollo local | `config/settings/base.py` |
+| CSRF en cada solicitud no segura, incluido el inicio de sesión | `apps/accounts/api/views.py` |
+| Contraseñas con hash Argon2 y longitud mínima de 12 caracteres | `config/settings/base.py` |
+| Error genérico para correo desconocido, contraseña incorrecta y usuario inactivo | `LoginView` |
+| Límite de intentos de acceso por (IP del cliente, correo) y por IP para todos los correos; número de proxies de confianza para evitar la suplantación de `X-Forwarded-For`; hashes de los correos en las claves de limitación | `apps/accounts/throttles.py`, `NUM_PROXIES` |
+| Las solicitudes entre organizaciones devuelven 404; las pruebas de aislamiento cubren cada ruta | `apps/organizations/tests/test_isolation.py` |
+| Permisos denegados por defecto; comprobación de roles en el servidor, nunca solo en la interfaz | `apps/organizations/permissions.py` |
+| Identificadores públicos UUIDv7 (sin identificadores secuenciales en las URL) | `common/models.py` |
+| CSP (incluido `object-src 'none'`), `X-Frame-Options`, `nosniff` y `Referrer-Policy` en cada respuesta; la administración de Django no se enruta por el punto de entrada público | `frontend/security-headers.conf`, `frontend/nginx.conf` |
+| Contenedores ejecutados sin privilegios de root; secretos únicamente mediante variables de entorno | Archivos `Dockerfile`, `.env.example` |
+| Búsqueda de secretos en todo el historial de Git y el directorio de trabajo en CI | `.github/workflows/ci.yml` (gitleaks) |
 
-To report a vulnerability, see [SECURITY.md](SECURITY.md).
+Para informar de una vulnerabilidad, consulta [SECURITY.md](SECURITY.md).
 
-## Testing
+## Pruebas
 
-| Suite | Command | What it covers |
+| Conjunto de pruebas | Comando | Cobertura |
 |---|---|---|
-| Backend | `make test-api` | Auth, CSRF, throttling, tenancy, permission matrix, cross-tenant isolation, health and errors. Coverage gate: 85% |
-| Backend lint/types | `make lint-api` | ruff, mypy (strict, with Django and DRF plugins) |
-| Frontend | `make test-web` | Sign-in flow, redirects, organization switching, admin and member settings, axe accessibility checks |
-| Frontend lint/types | `make lint-web` | oxlint (warnings fail), TypeScript strict |
-| End-to-end | `make e2e` (stack running, `DEMO_PASSWORD` exported) | Playwright on desktop and mobile viewports against the real stack |
-| Contract | `make schema-check` | Committed OpenAPI schema matches the code; generated TypeScript types match the schema (CI) |
+| Backend | `make test-api` | Autenticación, CSRF, limitación de solicitudes, organizaciones, matriz de permisos, aislamiento entre organizaciones, funcionamiento y errores. Cobertura mínima: 85 % |
+| Análisis estático y tipos del backend | `make lint-api` | ruff, mypy (modo estricto, con complementos de Django y DRF) |
+| Frontend | `make test-web` | Inicio de sesión, redirecciones, cambio de organización, configuración para administradores y miembros, comprobaciones de accesibilidad con axe |
+| Análisis estático y tipos del frontend | `make lint-web` | oxlint (las advertencias provocan fallos), TypeScript estricto |
+| Extremo a extremo | `make e2e` (servicios en ejecución y `DEMO_PASSWORD` exportada) | Playwright con tamaños de pantalla de escritorio y móvil contra los servicios reales |
+| Contrato | `make schema-check` | El esquema OpenAPI versionado coincide con el código; los tipos TypeScript generados coinciden con el esquema (CI) |
 
-The CI workflow (`.github/workflows/ci.yml`) is configured to run all of the above on every push and pull request, plus a production image build and gitleaks over the full history.
+El flujo de CI (`.github/workflows/ci.yml`) ejecuta estas comprobaciones con cada envío de cambios y solicitud de integración, además de construir la imagen de producción y ejecutar gitleaks sobre todo el historial.
 
-## Project layout
+## Estructura del proyecto
 
 ```
-backend/        Django project (config/, apps/, common/), openapi.yaml, Dockerfile
-frontend/       React app (src/), Playwright tests (e2e/), nginx config, Dockerfile
-docs/adr/       Architecture decision records
-scripts/        Local helper scripts
+backend/        Proyecto Django (config/, apps/, common/), openapi.yaml, Dockerfile
+frontend/       Aplicación React (src/), pruebas Playwright (e2e/), configuración nginx, Dockerfile
+docs/adr/       Registros de decisiones de arquitectura
+scripts/        Scripts auxiliares para uso local
 ```
 
-## Roadmap
+## Plan de desarrollo
 
-| Milestone | Scope | Status |
+| Hito | Alcance | Estado |
 |---|---|---|
-| Foundation | Accounts, organizations, tenancy, permissions, app shell | **Done** |
-| People | Invitations by email, member management, last-owner protection | Next |
-| Workflows | Versioned workflow templates with ordered approval steps | Planned |
-| Requests | Submit, approve, reject, comment; state machine with concurrency safety; audit trail | Planned |
-| Notifications | In-app and email notifications | Planned |
-| Hardening | PostgreSQL Row-Level Security, OIDC sign-in, rate limits per tenant | Later |
+| Bases | Cuentas, organizaciones, aislamiento, permisos y estructura de la aplicación | **Completado** |
+| Personas | Invitaciones por correo, gestión de miembros y protección del último propietario | Siguiente |
+| Flujos de trabajo | Plantillas versionadas con pasos de aprobación ordenados | Planificado |
+| Solicitudes | Enviar, aprobar, rechazar y comentar; máquina de estados con protección ante concurrencia; registro de auditoría | Planificado |
+| Notificaciones | Notificaciones en la aplicación y por correo | Planificado |
+| Refuerzo de seguridad | Seguridad por fila en PostgreSQL, inicio de sesión con OIDC y límites de solicitudes por organización | Más adelante |
 
-## License
+## Licencia
 
 [MIT](LICENSE) © 2026 Leonardo Galvis
