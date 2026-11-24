@@ -6,7 +6,7 @@ API := $(COMPOSE) run --rm --no-deps -e DJANGO_SETTINGS_MODULE=config.settings.t
 PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo py)
 
 .PHONY: help env up down logs demo migrations migrate test-api lint-api schema schema-check \
-        web-install test-web lint-web e2e-up e2e e2e-down e2e-reset check
+        web-install test-web lint-web e2e-up e2e e2e-down e2e-reset screenshots demo-gif check
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -46,8 +46,8 @@ schema: ## Regenerate OpenAPI schema and TypeScript types
 schema-check: ## Fail if the committed OpenAPI schema is out of date
 	$(API) sh -c "python manage.py spectacular --file /tmp/openapi.yaml --validate --fail-on-warn && diff -u openapi.yaml /tmp/openapi.yaml"
 
-web-install: ## Install frontend dependencies (needed by the *-web and e2e targets)
-	cd frontend && npm ci
+web-install: ## Install frontend dependencies and Playwright's Chromium (needed by the *-web and e2e targets)
+	cd frontend && npm ci && npx playwright install chromium
 
 test-web: ## Frontend unit/component tests
 	cd frontend && npm test
@@ -64,6 +64,17 @@ e2e: ## Playwright against the end-to-end stack (reads DEMO_PASSWORD from .env)
 
 e2e-down: ## Stop the end-to-end stack (keeps its database)
 	$(E2E) down
+
+# README media. Run against a freshly seeded end-to-end stack (make e2e-reset e2e-up): the scripts
+# add a few synthetic requests, so a second run on the same database shows them twice.
+DOCS_RUN := cd frontend && DOCS=1 DEMO_PASSWORD="$${DEMO_PASSWORD:-$$(grep '^DEMO_PASSWORD=' ../.env | cut -d= -f2-)}" npx playwright test --project=docs --workers=1
+
+screenshots: ## Regenerate the README screenshots in docs/images (fresh e2e stack)
+	$(DOCS_RUN) e2e/docs/screenshots.spec.ts
+
+demo-gif: ## Record the approval flow: docs/images/approval-flow.gif + local MP4 (fresh e2e stack, Docker)
+	$(DOCS_RUN) e2e/docs/demo-video.spec.ts
+	sh scripts/make_demo_media.sh
 
 e2e-reset: ## Delete the end-to-end database only (never the demo one); run e2e-up again afterwards
 	$(E2E) down --volumes
