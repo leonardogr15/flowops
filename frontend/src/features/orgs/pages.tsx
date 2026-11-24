@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 
 import { api, ApiError, ensureCsrf, unwrap, type CurrentOrganization } from "../../api/client";
-import { Button, Field, Initials, PageLoading, RoleBadge, StateMessage } from "../../shared/ui/primitives";
+import { Button, Field, PageLoading, RoleBadge, StateMessage } from "../../shared/ui/primitives";
 import { canManage, membershipsKey, useOrganization } from "./organization";
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
@@ -14,17 +14,6 @@ function useCurrentOrganization() {
   return useQuery({
     queryKey: ["org", slug, "detail"],
     queryFn: () => unwrap(api.GET("/api/v1/org", { params: { header: { "X-Organization": slug ?? "" } } })),
-    enabled: Boolean(slug),
-  });
-}
-
-function useMembers() {
-  const { active } = useOrganization();
-  const slug = active?.organization.slug;
-  return useQuery({
-    queryKey: ["org", slug, "members"],
-    queryFn: () =>
-      unwrap(api.GET("/api/v1/org/members", { params: { header: { "X-Organization": slug ?? "" }, query: { page_size: 100 } } })),
     enabled: Boolean(slug),
   });
 }
@@ -77,61 +66,18 @@ export function OverviewPage() {
       <section className="mt-12 max-w-3xl" aria-labelledby="workflows-heading">
         <h2 id="workflows-heading" className="text-lg font-semibold">Approval workflows</h2>
         <p className="mt-1.5 text-[15px] leading-relaxed text-muted">
-          No workflow templates yet. Templates define who approves each kind of request and in what order; they
-          arrive in the next release of FlowOps.
+          Workflows define who approves each kind of request and in what order. Submitting and approving requests
+          arrives in the next release.
         </p>
-        <Link to="/members" className="mt-4 inline-block text-sm font-semibold text-signal hover:text-signal-strong">
-          Review who is in {data.name}
-        </Link>
-      </section>
-    </>
-  );
-}
-
-export function MembersPage() {
-  const { active } = useOrganization();
-  const members = useMembers();
-
-  return (
-    <>
-      <PageHeader title="Members">People who can submit and approve requests in this organization.</PageHeader>
-      {members.isPending ? (
-        <PageLoading label="Loading members" />
-      ) : members.isError ? (
-        loadError(members.error)
-      ) : members.data.results.length === 0 ? (
-        <StateMessage title="No members yet">Invite people to start routing requests.</StateMessage>
-      ) : (
-        <div className="max-w-4xl overflow-hidden rounded-lg bg-surface ring-1 ring-line">
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">Members of {active?.organization.name}</caption>
-            <thead className="border-b border-line text-muted">
-              <tr>
-                <th scope="col" className="w-full px-4 py-3 font-medium sm:px-5">Name</th>
-                <th scope="col" className="px-4 py-3 font-medium sm:px-5">Role</th>
-                <th scope="col" className="hidden px-5 py-3 font-medium sm:table-cell">Joined</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {members.data.results.map((m) => (
-                <tr key={m.id}>
-                  <td className="max-w-0 px-4 py-3.5 sm:px-5">
-                    <div className="flex items-center gap-3">
-                      <Initials name={m.user.full_name || m.user.email} />
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold">{m.user.full_name || m.user.email}</p>
-                        <p className="truncate text-muted">{m.user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 sm:px-5"><RoleBadge role={m.role} /></td>
-                  <td className="hidden px-5 py-3.5 text-muted tabular-nums sm:table-cell">{dateFormat.format(new Date(m.created_at))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+          <Link to="/workflows" className="text-sm font-semibold text-signal hover:text-signal-strong">
+            {canManage(data.role) ? "Manage workflows" : "View workflows"}
+          </Link>
+          <Link to="/members" className="text-sm font-semibold text-signal hover:text-signal-strong">
+            See who is in {data.name}
+          </Link>
         </div>
-      )}
+      </section>
     </>
   );
 }

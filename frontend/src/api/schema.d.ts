@@ -69,6 +69,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invitations/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What an invitation link is for. The token itself is the credential. */
+        get: operations["invitations_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Signed-in users accept with an empty body. New users send full_name and password; the account is created and signed in. */
+        post: operations["invitations_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/org": {
         parameters: {
             query?: never;
@@ -87,6 +121,41 @@ export interface paths {
         patch: operations["v1_org_partial_update"];
         trace?: never;
     };
+    "/api/v1/org/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Pending invitations of the active organization (admins and owners). */
+        get: operations["v1_org_invitations_list"];
+        put?: never;
+        /** @description Pending invitations of the active organization (admins and owners). */
+        post: operations["v1_org_invitations_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/invitations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        delete: operations["org_invitations_revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/org/members": {
         parameters: {
             query?: never;
@@ -98,6 +167,94 @@ export interface paths {
         get: operations["v1_org_members_list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Change a member's role or remove them. Members may remove themselves (leave). */
+        delete: operations["org_members_remove"];
+        options?: never;
+        head?: never;
+        /** @description Change a member's role or remove them. Members may remove themselves (leave). */
+        patch: operations["org_members_change_role"];
+        trace?: never;
+    };
+    "/api/v1/org/workflow-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["workflow_templates_list"];
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["workflow_templates_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/workflow-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["workflow_templates_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        patch: operations["workflow_templates_update"];
+        trace?: never;
+    };
+    "/api/v1/org/workflow-templates/{id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replace the draft's steps; starts a new draft version when only a published one exists. */
+        put: operations["workflow_templates_save_draft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/workflow-templates/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["workflow_templates_publish"];
         delete?: never;
         options?: never;
         head?: never;
@@ -126,6 +283,44 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptInvitationRequest: {
+            /** @default  */
+            full_name: string;
+            /** @default  */
+            password: string;
+        };
+        /** @description The new membership plus the signed-in user (the account may have just been created). */
+        AcceptedInvitation: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly role: components["schemas"]["RoleEnum"];
+            readonly organization: components["schemas"]["Organization"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly user: components["schemas"]["User"];
+        };
+        /**
+         * @description * `user` - Specific person
+         *     * `role` - Anyone with a role
+         * @enum {string}
+         */
+        ApproverTypeEnum: "user" | "role";
+        /** @enum {unknown} */
+        BlankEnum: "";
+        /**
+         * @description * `purchase` - Purchase
+         *     * `expense` - Expense
+         *     * `access` - Access
+         *     * `other` - Other
+         * @enum {string}
+         */
+        CategoryEnum: "purchase" | "expense" | "access" | "other";
+        CreateInvitationRequest: {
+            /** Format: email */
+            email: string;
+            /** @default member */
+            role: components["schemas"]["InvitableRoleEnum"];
+        };
         CsrfResponse: {
             csrfToken: string;
         };
@@ -138,6 +333,51 @@ export interface components {
             readonly created_at: string;
             readonly role: components["schemas"]["RoleEnum"];
             readonly member_count: number;
+        };
+        DraftRequest: {
+            steps: components["schemas"]["StepInputRequest"][];
+        };
+        /**
+         * @description * `admin` - Admin
+         *     * `member` - Member
+         * @enum {string}
+         */
+        InvitableRoleEnum: "admin" | "member";
+        Invitation: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: email */
+            readonly email: string;
+            readonly role: components["schemas"]["RoleEnum"];
+            readonly invited_by: string | null;
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        InvitationPreview: {
+            organization_name: string;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["RoleEnum"];
+            invited_by: string | null;
+            /** Format: date-time */
+            expires_at: string;
+            account_exists: boolean;
+        };
+        IssuedInvitation: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: email */
+            readonly email: string;
+            readonly role: components["schemas"]["RoleEnum"];
+            readonly invited_by: string | null;
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** @description Shown once. Share it if email delivery fails. */
+            readonly accept_url: string;
         };
         LoginRequest: {
             /** Format: email */
@@ -186,8 +426,16 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Member"][];
         };
+        PatchedChangeRoleRequest: {
+            role?: components["schemas"]["RoleEnum"];
+        };
         PatchedCurrentOrganizationRequest: {
             name?: string;
+        };
+        PatchedTemplateUpdateRequest: {
+            name?: string;
+            category?: components["schemas"]["CategoryEnum"];
+            description?: string;
         };
         /**
          * @description * `owner` - Owner
@@ -196,6 +444,64 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "owner" | "admin" | "member";
+        /**
+         * @description * `draft` - Draft
+         *     * `published` - Published
+         *     * `archived` - Archived
+         * @enum {string}
+         */
+        StatusEnum: "draft" | "published" | "archived";
+        Step: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly order: number;
+            readonly name: string;
+            readonly approver_type: components["schemas"]["ApproverTypeEnum"];
+            readonly approver_user: components["schemas"]["User"] | null;
+            readonly approver_role: components["schemas"]["RoleEnum"];
+        };
+        StepInputRequest: {
+            name: string;
+            approver_type: components["schemas"]["ApproverTypeEnum"];
+            /** Format: uuid */
+            approver_user?: string | null;
+            /** @default  */
+            approver_role: components["schemas"]["RoleEnum"] | components["schemas"]["BlankEnum"];
+        };
+        TemplateCreateRequest: {
+            name: string;
+            /** @default other */
+            category: components["schemas"]["CategoryEnum"];
+            /** @default  */
+            description: string;
+            steps: components["schemas"]["StepInputRequest"][];
+        };
+        TemplateDetail: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly category: components["schemas"]["CategoryEnum"];
+            readonly description: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly published: components["schemas"]["Version"] | null;
+            readonly draft: components["schemas"]["Version"] | null;
+            readonly history: components["schemas"]["VersionSummary"][];
+        };
+        TemplateList: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly category: components["schemas"]["CategoryEnum"];
+            readonly description: string;
+            readonly published_version: number | null;
+            readonly published_step_count: number;
+            readonly has_draft: boolean;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
         User: {
             /** Format: uuid */
             readonly id: string;
@@ -204,6 +510,24 @@ export interface components {
             readonly full_name: string;
             /** Format: date-time */
             readonly date_joined: string;
+        };
+        Version: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly number: number;
+            readonly status: components["schemas"]["StatusEnum"];
+            /** Format: date-time */
+            readonly published_at: string | null;
+            readonly published_by: string | null;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly steps: components["schemas"]["Step"][];
+        };
+        VersionSummary: {
+            readonly number: number;
+            readonly status: components["schemas"]["StatusEnum"];
+            /** Format: date-time */
+            readonly published_at: string | null;
         };
     };
     responses: never;
@@ -293,6 +617,52 @@ export interface operations {
             };
         };
     };
+    invitations_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+        };
+    };
+    invitations_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedInvitation"];
+                };
+            };
+        };
+    };
     v1_org_retrieve: {
         parameters: {
             query?: never;
@@ -341,6 +711,77 @@ export interface operations {
             };
         };
     };
+    v1_org_invitations_list: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"][];
+                };
+            };
+        };
+    };
+    v1_org_invitations_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedInvitation"];
+                };
+            };
+        };
+    };
+    org_invitations_revoke: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     v1_org_members_list: {
         parameters: {
             query?: {
@@ -364,6 +805,209 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedMemberList"];
+                };
+            };
+        };
+    };
+    org_members_remove: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    org_members_change_role: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedChangeRoleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+        };
+    };
+    workflow_templates_list: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateList"][];
+                };
+            };
+        };
+    };
+    workflow_templates_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateDetail"];
+                };
+            };
+        };
+    };
+    workflow_templates_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateDetail"];
+                };
+            };
+        };
+    };
+    workflow_templates_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedTemplateUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateDetail"];
+                };
+            };
+        };
+    };
+    workflow_templates_save_draft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Version"];
+                };
+            };
+        };
+    };
+    workflow_templates_publish: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Version"];
                 };
             };
         };

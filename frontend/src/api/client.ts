@@ -7,6 +7,16 @@ export type MyMembership = components["schemas"]["MyMembership"];
 export type Member = components["schemas"]["Member"];
 export type CurrentOrganization = components["schemas"]["CurrentOrganization"];
 export type Role = MyMembership["role"];
+export type Invitation = components["schemas"]["Invitation"];
+export type IssuedInvitation = components["schemas"]["IssuedInvitation"];
+export type InvitationPreview = components["schemas"]["InvitationPreview"];
+export type InvitableRole = components["schemas"]["CreateInvitationRequest"]["role"];
+export type TemplateSummary = components["schemas"]["TemplateList"];
+export type TemplateDetail = components["schemas"]["TemplateDetail"];
+export type TemplateVersion = components["schemas"]["Version"];
+export type Step = components["schemas"]["Step"];
+export type StepInput = components["schemas"]["StepInputRequest"];
+export type Category = components["schemas"]["TemplateCreateRequest"]["category"];
 
 /** RFC 9457 problem returned by the API for every error. */
 export interface Problem {
@@ -14,7 +24,8 @@ export interface Problem {
   title: string;
   status: number;
   detail: string;
-  errors?: Record<string, string[]>;
+  // Field errors; nested objects for list fields (e.g. steps -> index -> field -> messages).
+  errors?: Record<string, unknown>;
 }
 
 export class ApiError extends Error {
@@ -29,7 +40,8 @@ export class ApiError extends Error {
   }
 
   fieldError(field: string): string | undefined {
-    return this.problem.errors?.[field]?.[0];
+    const value = this.problem.errors?.[field];
+    return Array.isArray(value) ? value[0] : undefined;
   }
 }
 
