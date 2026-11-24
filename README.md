@@ -2,31 +2,110 @@
 
 **English** · [Español](README.es.md)
 
-Multi-tenant approval workflows for operations teams: purchases, expenses and access requests go to
-the right approvers, in order, with a record of every decision.
+**Approval workflows for operations teams.** Purchases, expenses and access requests go to the right
+people, in the right order, and every decision is recorded. Multi-tenant SaaS built with Django, DRF,
+React and PostgreSQL.
 
-> **Status: feature-complete MVP, not deployed.** Accounts, organizations, people management,
-> versioned approval workflows and the full request lifecycle (submit, approve, reject, audit) work
-> end to end and run locally with one command. See [Roadmap](#roadmap).
-
+[![CI](https://github.com/leonardogr15/flowops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/leonardogr15/flowops/actions/workflows/ci.yml?query=branch%3Amain)
 ![Django](https://img.shields.io/badge/Django-6.1-0C4B33) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791) ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-## What works today
+![A purchase request waiting for the finance step: the approver's decision panel, the approval route and the request's audit trail](docs/images/request-detail.png)
 
-- **Sign in** with email and password. Sessions are server-side, CSRF-protected (login included), and failed attempts are throttled.
-- **Organizations and roles.** Create organizations, switch between the ones you belong to, and see your role (owner, admin or member).
-- **Tenant isolation.** Every request runs in the context of one organization. Data from other organizations is unreachable: such requests get `404`.
-- **Role-based permissions.** Members read; admins and owners manage people, workflows and settings; only owners manage owners.
-- **Invitations.** Admins invite people by email. Links work once, expire after 7 days and only for the invited address; new people create their account when they accept.
-- **Member management.** Change roles, remove members or leave an organization. An organization always keeps at least one owner, even under concurrent changes.
-- **Workflow templates.** Define who approves each kind of request and in what order, with a visual step builder and live route preview. Templates are versioned: admins edit a draft and publish it, published versions never change, and members only see published routes.
-- **Requests and approvals.** Create a draft and submit it; it follows the workflow version it was submitted with, step by step. Approvers decide from their inbox, a rejection needs a reason, and rejected requests can be duplicated into a new draft. Nobody can approve their own request, whatever their role. When two people decide the same step at once, exactly one decision counts and the other person is told.
-- **Admin fallback.** If nobody left can decide a step (the approver left or changed role), an admin other than the requester can decide it with a mandatory comment, recorded as an admin decision. Admins are notified when a step loses its last possible approver.
-- **People who leave.** Their requests are kept and approvers can still decide them. An admin can cancel such a request while it is in review, with a mandatory reason recorded in the audit log; requests of current members can only be cancelled by their requester.
-- **Audit trail.** Request changes, decisions, comments, membership changes and workflow changes are recorded in an append-only log: per request for everyone who can see it, organization-wide for admins.
-- **Inbox and notifications.** Steps waiting for you, a count in the navigation, and in-app notifications for assignments, outcomes and comments.
-- **Web app.** Responsive React UI with loading, empty, error and permission states, keyboard navigation and automated accessibility checks.
-- **Operational basics.** Health and readiness endpoints, JSON logs with request IDs, RFC 9457 error responses, and OpenAPI docs at `/api/docs/`.
+> **Status: feature-complete MVP, not deployed.** Everything below runs locally with one command and
+> is covered by automated tests. There is no hosted demo, no production deployment and no real users.
+
+## See it in 30 seconds
+
+![Maya submits a purchase request; Raj, Adam and Olivia approve their steps from their inboxes; Maya sees it approved with the full audit trail](docs/images/approval-flow.gif)
+
+*Maya submits a request; Raj (team lead), Adam (admin) and Olivia (owner) approve their steps; the
+request ends approved with every decision recorded. Recorded with Playwright on the demo data; the
+captions are added for the recording.*
+
+| Inbox and notifications | Workflow builder |
+|---|---|
+| ![Raj's inbox with two steps waiting and the notifications menu open](docs/images/inbox-and-notifications.png) | ![Editing the "Purchase over $1,000" workflow with a live preview of the route](docs/images/workflow-builder.png) |
+| **Organization audit log** | **On a phone** |
+| ![The admin-only audit log with plain-language entries](docs/images/audit-log.png) | <img src="docs/images/mobile-request.png" alt="The same request and decision panel on a phone" width="260"> |
+
+## Demo in 5 minutes
+
+Requirements: Docker with Compose v2. `make` is optional.
+
+1. **Start it** (builds, migrates and seeds fictional demo data):
+
+   ```bash
+   git clone https://github.com/leonardogr15/flowops.git
+   cd flowops
+   make demo
+   ```
+
+   Without `make` (for example on plain Windows):
+
+   ```bash
+   python scripts/make_env.py
+   docker compose up -d --build --wait
+   docker compose exec api python manage.py seed_demo
+   ```
+
+2. **Open <http://localhost:8080>.** Every demo account uses the password stored as `DEMO_PASSWORD`
+   in the `.env` file created in step 1.
+3. **Submit a request** as `maya.member@flowops.test`: *Requests → New request*, workflow
+   "Purchase over $1,000", any title and amount, then *Submit for approval*.
+4. **Approve it** step by step: sign out and sign in as `raj.approver@flowops.test` (step 1), then
+   `adam.admin@flowops.test` (step 2), then `olivia.owner@flowops.test` (step 3). Each step is
+   waiting in that person's **Inbox**.
+5. **Check the record**: as Maya, open the request: it is approved, and its *Audit trail* lists every
+   step and who decided it. As Adam, open **Audit log** for the whole organization.
+6. **Try to break it** (optional): as Adam, submit a request and look for a way to approve your own
+   step 2; open the same request as Adam and Olivia in two browsers and decide at the same time;
+   reject a request as Raj without a comment.
+
+API documentation: <http://localhost:8080/api/docs/>. Demo accounts:
+
+| Email | Organization | Role |
+|---|---|---|
+| `olivia.owner@flowops.test` | Orbital Supplies Co. | Owner |
+| `adam.admin@flowops.test` | Orbital Supplies Co. | Admin |
+| `maya.member@flowops.test` | Orbital Supplies Co. | Member |
+| `raj.approver@flowops.test` | Orbital Supplies Co. / Kestrel Analytics | Member / Admin |
+| `kim.owner@flowops.test` | Kestrel Analytics | Owner |
+
+People and companies are fictional. Invitation emails are printed to the API log
+(`docker compose logs api`) in this local demo; the invite dialog also shows the link once.
+
+> The Compose stack is a **local demo**: the API runs Django's development server with `DEBUG` on,
+> ports are bound to `127.0.0.1`, and cookies are not marked `Secure` because it serves plain HTTP.
+> It is not a deployment configuration. The production image (`backend/Dockerfile`, target
+> `runtime`) uses gunicorn and is what the end-to-end tests run. The Django admin is not exposed
+> through nginx; locally it is at <http://localhost:8000/admin/>.
+
+## Engineering highlights
+
+- **Tenant isolation that is tested, not assumed.** Every API view must declare whether it is
+  tenant-scoped, and a test harness discovers all `/api/v1` routes from the URL configuration and
+  calls each one with another organization's header and object ids: anything other than `404`
+  fails the build. ([test_isolation.py](backend/apps/organizations/tests/test_isolation.py),
+  [ADR-0001](docs/adr/0001-multi-tenancy.md))
+- **Concurrency proven on real PostgreSQL.** Two approvers deciding at once, approve versus reject,
+  cancel versus approve and double submits run in parallel threads against PostgreSQL; exactly one
+  outcome wins. The tests were checked to fail when the row locks are removed.
+  ([test_concurrency.py](backend/apps/requests/tests/test_concurrency.py),
+  [ADR-0006](docs/adr/0006-request-state-machine-and-concurrency.md))
+- **Nobody approves their own request.** Not even an owner. When nobody is left who can decide a
+  step, another admin can, with a mandatory comment recorded as an admin decision.
+- **An audit trail you can rely on.** Events are written in the same transaction as the change,
+  updates and deletes are blocked by a PostgreSQL trigger, and the events of each request carry a
+  sequence number assigned under the request's row lock, so the timeline stays in logical order
+  even if the server clock steps back. ([ADR-0007](docs/adr/0007-append-only-audit-log.md),
+  [test_event_order.py](backend/apps/requests/tests/test_event_order.py))
+- **One contract from database to browser.** The OpenAPI 3.1 schema is generated from the DRF code,
+  the TypeScript client types are generated from the schema, and CI fails if either is out of date.
+- **End-to-end on desktop and mobile.** Playwright drives the production image through the full
+  approval route, a rejection, a self-approval attempt (UI and API), two admins deciding the same step
+  at the same time, an expired session, and axe accessibility checks (colour contrast included).
+- **Security checks in CI.** gitleaks over the full history, and a check that no invitation token is
+  ever written to the logs of the running stack.
 
 ## Architecture
 
@@ -38,6 +117,24 @@ flowchart LR
     A --> R[(Redis<br/>cache + throttling)]
 ```
 
+A request's life, enforced by an explicit transition table and database constraints:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: create
+    Draft --> InReview: submit (workflow version pinned)
+    Draft --> Cancelled: cancel
+    InReview --> InReview: approve a step (next step opens)
+    InReview --> Approved: approve the last step
+    InReview --> Rejected: reject (comment required)
+    InReview --> Cancelled: cancel
+    Approved --> [*]
+    Rejected --> [*]
+    Cancelled --> [*]
+```
+
+Closed requests are never reopened: the requester can duplicate one into a new draft.
+
 | Layer | Responsibility |
 |---|---|
 | `backend/apps/accounts` | Email-based user model, session login/logout, login throttling |
@@ -46,7 +143,7 @@ flowchart LR
 | `backend/apps/requests` | Requests, approval tasks, comments, state machine, eligibility policy, inbox |
 | `backend/apps/audit` | Append-only audit events and the admin audit API |
 | `backend/apps/notifications` | In-app notifications |
-| `backend/common` | Problem-details errors, request-ID middleware, JSON logging, health checks |
+| `backend/common` | Problem-details errors, request-ID middleware, JSON logging, log redaction, health checks |
 | `frontend/src` | React app: API client generated from the OpenAPI schema, session and organization context, pages |
 
 Inside each Django app, **views** handle HTTP only, **services** perform writes inside transactions,
@@ -54,66 +151,76 @@ and **selectors** perform tenant-scoped reads.
 
 ### Technical decisions
 
-- [ADR-0001 Multi-tenancy: shared schema, application-enforced isolation](docs/adr/0001-multi-tenancy.md)
-- [ADR-0002 Authentication: server sessions with CSRF for a same-origin SPA](docs/adr/0002-authentication.md)
-- [ADR-0003 Runtime and tooling versions](docs/adr/0003-runtime-and-tooling-versions.md)
-- [ADR-0004 Invitations and owner protection](docs/adr/0004-invitations-and-owner-protection.md)
-- [ADR-0005 Versioned workflow templates instead of a generic workflow engine](docs/adr/0005-versioned-workflow-templates.md)
-- [ADR-0006 Request state machine and concurrency control](docs/adr/0006-request-state-machine-and-concurrency.md)
-- [ADR-0007 Append-only audit log](docs/adr/0007-append-only-audit-log.md)
+| Decision | Chosen | Instead of | Why | ADR |
+|---|---|---|---|---|
+| Multi-tenancy | Shared schema, every query scoped by organization | Schema or database per tenant | One migration path and simple operations; isolation proven by a route-discovering test harness. RLS is the planned second layer | [0001](docs/adr/0001-multi-tenancy.md) |
+| Authentication | Server sessions with CSRF, same-origin SPA | JWT in `localStorage` or a cookie | No token for XSS to steal; logout and expiry are server-side | [0002](docs/adr/0002-authentication.md) |
+| Runtime | Django 6.1, TypeScript 5.9 with generated API types | Django 5.2 LTS; TypeScript 7 with hand-written types | No two-major-version jump later; API types can't drift from the schema | [0003](docs/adr/0003-runtime-and-tooling-versions.md) |
+| Invitations | Single-use tokens stored as hashes; last owner protected under row locks | Signed stateless tokens; optimistic checks | Links can be revoked and used once; concurrent demotions can't remove the last owner | [0004](docs/adr/0004-invitations-and-owner-protection.md) |
+| Workflows | Versioned templates with ordered steps | A generic BPMN engine | In-flight requests keep their route; much less to run and reason about | [0005](docs/adr/0005-versioned-workflow-templates.md) |
+| Concurrency | Pessimistic row locks in a fixed order, stale-step `409` | Optimistic locking only | Simultaneous decisions resolve on the server, not in clients | [0006](docs/adr/0006-request-state-machine-and-concurrency.md) |
+| Audit | Append-only table, DB trigger, per-request sequence | Model-history libraries, external log store | Business events with a reliable order, inside the same transaction | [0007](docs/adr/0007-append-only-audit-log.md) |
 
-## Quick start
+## Testing and CI
 
-Requirements: Docker with Compose v2, and `make`. Running the frontend tests or the end-to-end tests
-outside Docker also needs Node.js 22+.
+Latest results on `main` from [CI run 45502673165](https://github.com/leonardogr15/flowops/actions/runs/45502673165)
+(commit `b66961e`, 2026-11-24): **backend 279 passed** (26 skipped: isolation-harness cases that call a
+route with the caller's own organization and no object id, where there is no other tenant's data to
+reach), **98.14% coverage** with an 85% gate; **frontend 44 passed**;
+**end-to-end 18 passed** on desktop and mobile; secret scan clean. The badge above shows the current
+status.
 
-```bash
-git clone https://github.com/leonardogr15/flowops.git
-cd flowops
-make demo   # creates .env with random local secrets, builds, starts, seeds demo data
-```
-
-`make` picks `python3`, `python` or `py`, whichever exists. Without `make` (for example on plain
-Windows), run the same steps directly:
-
-```bash
-python scripts/make_env.py
-docker compose up -d --build --wait
-docker compose exec api python manage.py seed_demo
-```
-
-Open <http://localhost:8080>. API docs: <http://localhost:8080/api/docs/>.
-
-> The Compose stack is a **local demo**: the API runs Django's development server with `DEBUG`
-> on, ports are bound to `127.0.0.1`, and cookies are not marked `Secure` because it serves plain
-> HTTP. It is not a deployment configuration. The production image (`backend/Dockerfile`, target
-> `runtime`) uses gunicorn with `config.settings.prod` and is built in CI. The Django admin is not
-> exposed through nginx; locally it is at <http://localhost:8000/admin/>.
-
-### Demo accounts
-
-All demo users share the password stored as `DEMO_PASSWORD` in your generated `.env`. People and
-companies are fictional.
-
-| Email | Organization | Role |
+| Suite | Command | What it covers |
 |---|---|---|
-| `olivia.owner@flowops.test` | Orbital Supplies Co. | Owner |
-| `adam.admin@flowops.test` | Orbital Supplies Co. | Admin |
-| `maya.member@flowops.test` | Orbital Supplies Co. | Member |
-| `raj.approver@flowops.test` | Orbital Supplies Co. / Kestrel Analytics | Member / Admin |
-| `kim.owner@flowops.test` | Kestrel Analytics | Owner |
+| Backend | `make test-api` | Auth, CSRF, throttling, tenancy, permission matrices, cross-tenant isolation, invitations, last-owner protection under concurrency, workflow versioning, request state machine, simultaneous decisions on real PostgreSQL, self-approval, admin fallback, audit trigger, rollback and event order. Coverage gate: 85% |
+| Backend lint/types | `make lint-api` | ruff, mypy (strict, with Django and DRF plugins) |
+| Frontend | `make test-web` | Sign-in and session expiry, organization switching, members and roles, invitations, workflow builder, requests (create, submit, approve, reject, lost race), inbox, notifications, audit log, axe checks |
+| Frontend lint/types | `make lint-web` | oxlint (warnings fail), TypeScript strict |
+| End-to-end | `make e2e-up`, then `make e2e` | Playwright on desktop and mobile against the production image: the approval route with its audit trail, rejection and duplication, self-approval refused, simultaneous decisions, expired session, invitations, workflow publishing, axe on the real pages |
+| Contract | `make schema-check` | Committed OpenAPI schema matches the code; generated TypeScript types match the schema |
 
-Signing in as Maya and Adam shows the permission differences on the Members, Workflows and Settings
-pages. Raj can switch between two organizations. The demo includes a published workflow and a draft,
-and requests in every state. To follow an approval end to end, submit a request as Maya, then approve
-it as Raj (step 1), Adam (step 2) and Olivia (step 3); each step appears in that person's Inbox.
-Invitation emails are printed to the API log (`docker compose logs api`); the invite dialog also shows
-the link once.
+`make e2e-up` starts a separate Compose project (`flowops-e2e`, with its own database) from
+`docker-compose.e2e.yml`, so test data never mixes with the demo; stop the demo first (`make down`),
+because both use the same ports. `make e2e-reset` deletes only the end-to-end database. Run `make
+web-install` once before the frontend and end-to-end targets; `make help` lists every target.
+
+The README screenshots and the GIF are generated from the running app: `make screenshots` and `make
+demo-gif` (on a freshly seeded end-to-end stack; the GIF uses a pinned FFmpeg container from
+LinuxServer.io, only on the developer's machine).
+
+## Security
+
+| Control | Where |
+|---|---|
+| Session cookie `HttpOnly`, `SameSite=Lax`, `Secure` outside local dev | `config/settings/base.py` |
+| CSRF on every unsafe request, including login | `apps/accounts/api/views.py` |
+| Argon2 password hashing, minimum length 12 | `config/settings/base.py` |
+| Generic error for unknown email, wrong password and inactive user | `LoginView` |
+| Login throttling per (client IP, email) and per client IP across all emails, with a trusted proxy count so `X-Forwarded-For` can't be spoofed; emails are hashed in throttle keys | `apps/accounts/throttles.py`, `NUM_PROXIES` |
+| Cross-tenant requests return 404; isolation harness covers every endpoint, including object ids from another organization | `apps/organizations/tests/test_isolation.py` |
+| Invitation tokens: 256-bit random, stored only as SHA-256, single use, 7-day expiry, bound to the invited email; re-inviting revokes the previous link | `apps/organizations/members.py` |
+| Invitation tokens never reach the logs: Django log lines, the nginx access log (path and `Referer`) and error messages show `[redacted]`; CI fails if a raw token appears in the running stack's logs | `common/redaction.py`, `frontend/nginx.conf`, `.github/workflows/ci.yml` |
+| Sending invitations (30 per hour) and creating organizations (5 per hour) are limited per user; limits answer `429` with `Retry-After` | `common/throttling.py`, `config/settings/base.py` |
+| Role changes re-read the acting member and lock owner rows, so concurrent demotions cannot remove the last owner | `apps/organizations/members.py` |
+| Request transitions run under row locks in a fixed order (template, request, open task). Decisions carry the current step and submits the current revision, so double clicks, retries and simultaneous decisions apply once | `apps/requests/services.py`, ADR-0006 |
+| Requesters never decide their own request, including admins and owners; admin fallback needs a comment and is flagged in the audit log | `apps/requests/policy.py` |
+| Audit events are written in the same transaction as the change; a model guard and a PostgreSQL trigger block updates and deletes (tamper-resistant, not cryptographically immutable). Events of a request are numbered under the request's row lock, so the timeline keeps their logical order even if the server clock steps back | `apps/audit/`, ADR-0007 |
+| Request visibility is enforced in queries: people outside a request get `404`, and notifications about requests they can no longer see are hidden | `apps/requests/policy.py`, `apps/notifications/` |
+| Published workflow versions are immutable (enforced in services and in the model); publishing re-checks that approvers are still members | `apps/workflows/` |
+| Production settings refuse to start without an explicit `EMAIL_BACKEND`, so invitation links are never written to logs by the local console backend | `config/settings/prod.py` |
+| Deny-by-default permissions; role checks on the server, never only in the UI | `apps/organizations/permissions.py` |
+| UUIDv7 public IDs (no sequential IDs in URLs) | `common/models.py` |
+| CSP (including `object-src 'none'`, no inline scripts), `X-Frame-Options`, `nosniff`, `Referrer-Policy` on every response; Django admin not routed through the public entrypoint | `frontend/security-headers.conf`, `frontend/nginx.conf` |
+| Containers run as non-root; secrets only via environment | `Dockerfile`s, `.env.example` |
+| Secret scanning of the full git history and the working tree in CI | `.github/workflows/ci.yml` (gitleaks) |
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## API overview
 
 All endpoints are under `/api/v1/`. Unsafe methods need the `X-CSRFToken` header. Tenant-scoped
-endpoints need `X-Organization: <organization slug>`.
+endpoints need `X-Organization: <organization slug>`. Interactive documentation is served at
+`/api/docs/`.
 
 | Method and path | Auth | Tenant-scoped | Member | Admin | Owner |
 |---|---|---|:-:|:-:|:-:|
@@ -155,54 +262,19 @@ Status codes: `401` if not signed in, `403` if your role is not allowed, `404` f
 don't belong to (indistinguishable from ones that don't exist), and `400` if the organization header
 is missing. Errors use `application/problem+json`.
 
-## Security
+## Known limitations and what production would need
 
-| Control | Where |
-|---|---|
-| Session cookie `HttpOnly`, `SameSite=Lax`, `Secure` outside local dev | `config/settings/base.py` |
-| CSRF on every unsafe request, including login | `apps/accounts/api/views.py` |
-| Argon2 password hashing, minimum length 12 | `config/settings/base.py` |
-| Generic error for unknown email, wrong password and inactive user | `LoginView` |
-| Login throttling per (client IP, email) and per client IP across all emails, with a trusted proxy count so `X-Forwarded-For` can't be spoofed; emails are hashed in throttle keys | `apps/accounts/throttles.py`, `NUM_PROXIES` |
-| Cross-tenant requests return 404; isolation harness covers every endpoint, including object ids from another organization | `apps/organizations/tests/test_isolation.py` |
-| Invitation tokens: 256-bit random, stored only as SHA-256, single use, 7-day expiry, bound to the invited email; re-inviting revokes the previous link | `apps/organizations/members.py` |
-| Invitation tokens never reach the logs: Django log lines, the nginx access log (path and `Referer`) and error messages show `[redacted]`; gunicorn's access log is off (Django logs every request). CI fails if a raw token appears in the end-to-end stack's logs | `common/redaction.py`, `frontend/nginx.conf`, `.github/workflows/ci.yml` |
-| Sending invitations (30 per hour) and creating organizations (5 per hour) are limited per user, so an account can't be used to send bulk email; limits answer `429` with `Retry-After` | `common/throttling.py`, `config/settings/base.py` |
-| Role changes re-read the acting member and lock owner rows, so concurrent demotions cannot remove the last owner | `apps/organizations/members.py` |
-| Request transitions run under row locks in a fixed order (template, request, open task). Decisions carry the current step and submits the current revision, so double clicks, retries and simultaneous decisions apply once | `apps/requests/services.py`, ADR-0006 |
-| Requesters never decide their own request, including admins and owners; admin fallback needs a comment and is flagged in the audit log | `apps/requests/policy.py` |
-| Audit events are written in the same transaction as the change; a model guard and a PostgreSQL trigger block updates and deletes (tamper-resistant, not cryptographically immutable). Events of a request are numbered under the request's row lock, so the timeline keeps their logical order even if the server clock steps back | `apps/audit/`, ADR-0007 |
-| Request visibility is enforced in queries: people outside a request get `404`, and notifications about requests they can no longer see are hidden | `apps/requests/policy.py`, `apps/notifications/` |
-| Published workflow versions are immutable (enforced in services and in the model); publishing re-checks that approvers are still members | `apps/workflows/` |
-| Production settings refuse to start without an explicit `EMAIL_BACKEND`, so invitation links are never written to logs by the local console backend | `config/settings/prod.py` |
-| Deny-by-default permissions; role checks on the server, never only in the UI | `apps/organizations/permissions.py` |
-| UUIDv7 public IDs (no sequential IDs in URLs) | `common/models.py` |
-| CSP (including `object-src 'none'`), `X-Frame-Options`, `nosniff`, `Referrer-Policy` on every response; Django admin not routed through the public entrypoint | `frontend/security-headers.conf`, `frontend/nginx.conf` |
-| Containers run as non-root; secrets only via environment | `Dockerfile`s, `.env.example` |
-| Secret scanning of the full git history and the working tree in CI | `.github/workflows/ci.yml` (gitleaks) |
-
-To report a vulnerability, see [SECURITY.md](SECURITY.md).
-
-## Testing
-
-| Suite | Command | What it covers |
-|---|---|---|
-| Backend | `make test-api` | Auth, CSRF, throttling, tenancy, permission matrices, cross-tenant isolation, invitations, last-owner protection under concurrency, workflow versioning, request state machine, simultaneous decisions on real PostgreSQL, self-approval, admin fallback, audit trigger and rollback. Coverage gate: 85% |
-| Backend lint/types | `make lint-api` | ruff, mypy (strict, with Django and DRF plugins) |
-| Frontend | `make test-web` | Sign-in, redirects, organization switching, settings, members and roles, invitations and acceptance, workflow builder and publishing, requests (create, submit, approve, reject, lost race), inbox, notifications, audit log, axe accessibility checks |
-| Frontend lint/types | `make lint-web` | oxlint (warnings fail), TypeScript strict |
-| End-to-end | `make e2e-up`, then `make e2e` | Playwright on desktop and mobile viewports against the real stack: sign-in, an expired session that returns to the same page, invite and join, build and publish a workflow, a request approved by Raj, Adam and Olivia with its full audit trail, rejection and duplication, self-approval refused in the UI and the API, two admins deciding the same step at once |
-| Contract | `make schema-check` | Committed OpenAPI schema matches the code; generated TypeScript types match the schema (CI) |
-
-The CI workflow (`.github/workflows/ci.yml`) is configured to run all of the above on every push and pull request, plus gitleaks over the full history.
-
-`make e2e-up` starts a separate Compose project (`flowops-e2e`, with its own database) from
-`docker-compose.e2e.yml`, so test data never mixes with the demo; stop the demo first (`make down`),
-because both use the same ports. The API runs the production image under gunicorn, without the source
-bind mount or the development autoreloader, so editing files while the suite runs cannot restart the
-server mid-test. `make e2e` reads `DEMO_PASSWORD` from `.env`. `make e2e-reset` deletes only the
-end-to-end database. Run `make web-install` once before the frontend and end-to-end targets; `make
-help` lists every target.
+- **Not deployed.** Production would need TLS termination with HSTS, stricter production settings
+  (required hosts and origins, `manage.py check --deploy` in CI), a real email provider, database
+  backups, log aggregation, metrics and alerts, and a scheduled session cleanup.
+- **Notifications are in-app only** and refreshed every 30 seconds; no email or push yet.
+- **Isolation is enforced by the application.** PostgreSQL Row-Level Security would add a second
+  layer.
+- **Comments and request timelines are not paginated.** They are small per request, but have no
+  hard cap.
+- **The organization-wide audit log is ordered by time**, which is approximate if the server clock
+  steps back; the per-request timeline has an exact logical order.
+- No password change or reset flow, and no OIDC/SSO yet.
 
 ## Project layout
 
@@ -210,6 +282,7 @@ help` lists every target.
 backend/        Django project (config/, apps/, common/), openapi.yaml, Dockerfile
 frontend/       React app (src/), Playwright tests (e2e/), nginx config, Dockerfile
 docs/adr/       Architecture decision records
+docs/images/    README screenshots and GIF (generated with make screenshots / make demo-gif)
 scripts/        Local helper scripts
 ```
 
