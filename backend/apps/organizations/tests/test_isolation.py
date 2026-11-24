@@ -21,10 +21,13 @@ from django.urls import URLPattern, URLResolver, get_resolver
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.audit.models import AuditEvent
+from apps.notifications.models import Notification
 from apps.organizations.members import invite
 from apps.organizations.models import Invitation, Membership, Organization, Role
+from apps.requests.models import ApprovalTask, Comment, Request
 from apps.workflows.models import Step, TemplateVersion, WorkflowTemplate
-from apps.workflows.services import StepInput, create_template
+from apps.workflows.services import StepInput, create_template, publish
 from common.tests.support import login
 
 API_PREFIX = "api/v1/"
@@ -34,6 +37,11 @@ SAFE_PAYLOAD: dict[str, Any] = {
     "email": "intruder@example.test",
     "role": "owner",
     "steps": [{"name": "Hijacked step", "approver_type": "role", "approver_role": "member"}],
+    "title": "Hijacked title",
+    "revision": 1,
+    "step": 1,
+    "body": "Hijacked comment",
+    "comment": "Hijacked decision",
 }
 
 
@@ -101,7 +109,45 @@ def _victim_template(org: Organization, owner: User) -> UUID:
     ).pk
 
 
+def _victim_request(org: Organization, owner: User, *, submitted: bool = True) -> UUID:
+    from decimal import Decimal
+
+    from apps.requests import services as requests
+
+    actor = Membership.objects.get(organization=org, user=owner)
+    other = User.objects.create_user(f"approver-{org.slug}@example.test", "x" * 14)
+    Membership.objects.create(organization=org, user=other, role=Role.ADMIN)
+    steps = [StepInput(name="Admin approval", approver_type="role", approver_role="admin")]
+    template = create_template(actor=actor, name="Victim flow", category="other", description="", steps=steps)
+    publish(actor=actor, template_id=template.pk)
+    fields = requests.RequestFields(title="Victim request", amount=Decimal("10"), currency="USD")
+    req = requests.create_request(actor=actor, template_id=template.pk, fields=fields)
+    if submitted:
+        requests.submit(actor=actor, request_id=req.pk, revision=req.revision)
+    return req.pk
+
+
+def _victim_draft(org: Organization, owner: User) -> UUID:
+    return _victim_request(org, owner, submitted=False)
+
+
+def _victim_notification(org: Organization, owner: User) -> UUID:
+    from apps.notifications.models import Notification
+
+    _victim_request(org, owner)
+    return Notification.objects.filter(organization=org).values_list("pk", flat=True).first()  # type: ignore[return-value]
+
+
 OBJECT_FACTORIES: dict[str, Callable[[Organization, User], UUID]] = {
+    "/api/v1/org/requests/<uuid:pk>": _victim_draft,
+    "/api/v1/org/requests/<uuid:pk>/submit": _victim_draft,
+    "/api/v1/org/requests/<uuid:pk>/cancel": _victim_request,
+    "/api/v1/org/requests/<uuid:pk>/approve": _victim_request,
+    "/api/v1/org/requests/<uuid:pk>/reject": _victim_request,
+    "/api/v1/org/requests/<uuid:pk>/duplicate": _victim_request,
+    "/api/v1/org/requests/<uuid:pk>/comments": _victim_request,
+    "/api/v1/org/requests/<uuid:pk>/timeline": _victim_request,
+    "/api/v1/org/notifications/<uuid:pk>/read": _victim_notification,
     "/api/v1/org/members/<uuid:pk>": _victim_member,
     "/api/v1/org/invitations/<uuid:pk>": _victim_invitation,
     "/api/v1/org/workflow-templates/<uuid:pk>": _victim_template,
@@ -131,6 +177,11 @@ def victim_state(org: Organization) -> tuple[Any, ...]:
         sorted(WorkflowTemplate.objects.filter(organization=org).values_list("name", "description")),
         sorted(TemplateVersion.objects.filter(organization=org).values_list("number", "status")),
         Step.objects.filter(organization=org).count(),
+        sorted(Request.objects.filter(organization=org).values_list("title", "status", "revision")),
+        sorted(ApprovalTask.objects.filter(organization=org).values_list("step_order", "status")),
+        Comment.objects.filter(organization=org).count(),
+        sorted(Notification.objects.filter(organization=org).values_list("pk", "read_at")),
+        AuditEvent.objects.filter(organization=org).count(),
     )
 
 

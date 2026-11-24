@@ -7,6 +7,7 @@ The password comes from DEMO_PASSWORD so no credential lives in the repository.
 from __future__ import annotations
 
 import os
+from decimal import Decimal
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
@@ -52,6 +53,7 @@ class Command(BaseCommand):
                     organization=orgs[org_slug], user=user, defaults={"role": role}
                 )
             self._seed_templates(orgs["orbital-supplies"])
+            self._seed_requests(orgs["orbital-supplies"])
         self.stdout.write(
             self.style.SUCCESS(
                 f"Demo data ready: {Organization.objects.filter(slug__in=ORGS).count()} organizations, "
@@ -84,3 +86,43 @@ class Command(BaseCommand):
             description="Temporary access to production systems.",
             steps=[StepInput(name="Security review", approver_type="role", approver_role=Role.ADMIN)],
         )
+
+    def _seed_requests(self, org: Organization) -> None:
+        """Requests in every state, created through the services so audit and notifications are real."""
+        from apps.requests import services as requests
+        from apps.requests.models import Request
+
+        if Request.objects.filter(organization=org).exists():
+            return
+        member = {
+            key: Membership.objects.get(organization=org, user__email=f"{key}@flowops.test")
+            for key in ("maya.member", "raj.approver", "adam.admin", "olivia.owner")
+        }
+        template = WorkflowTemplate.objects.get(organization=org, name="Purchase over $1,000")
+
+        def new(title: str, amount: str) -> Request:
+            fields = requests.RequestFields(title=title, amount=Decimal(amount), currency="USD")
+            return requests.create_request(
+                actor=member["maya.member"], template_id=template.pk, fields=fields
+            )
+
+        approved = new("Laptop for the new designer", "1450.00")
+        requests.submit(actor=member["maya.member"], request_id=approved.pk, revision=approved.revision)
+        for step, key in enumerate(("raj.approver", "adam.admin", "olivia.owner"), start=1):
+            requests.decide(actor=member[key], request_id=approved.pk, step=step, approve=True)
+
+        in_review = new("Ergonomic chairs for the support team", "2300.00")
+        requests.submit(actor=member["maya.member"], request_id=in_review.pk, revision=in_review.revision)
+        requests.decide(actor=member["raj.approver"], request_id=in_review.pk, step=1, approve=True)
+
+        rejected = new("Conference tickets", "1800.00")
+        requests.submit(actor=member["maya.member"], request_id=rejected.pk, revision=rejected.revision)
+        requests.decide(
+            actor=member["raj.approver"],
+            request_id=rejected.pk,
+            step=1,
+            approve=False,
+            comment="Out of budget this quarter. Let's revisit in Q1.",
+        )
+
+        new("Monitor arms", "1120.00")  # stays a draft

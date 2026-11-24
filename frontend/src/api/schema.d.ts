@@ -121,6 +121,40 @@ export interface paths {
         patch: operations["v1_org_partial_update"];
         trace?: never;
     };
+    "/api/v1/org/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["audit_events_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["inbox_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/org/invitations": {
         parameters: {
             query?: never;
@@ -189,6 +223,213 @@ export interface paths {
         head?: never;
         /** @description Change a member's role or remove them. Members may remove themselves (leave). */
         patch: operations["org_members_change_role"];
+        trace?: never;
+    };
+    "/api/v1/org/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["notifications_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["notifications_mark_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/notifications/unread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["notifications_unread"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Requests visible to the caller. `scope=mine` (default for everyone) or `scope=all` (all visible). */
+        get: operations["requests_list"];
+        put?: never;
+        /** @description Requests visible to the caller. `scope=mine` (default for everyone) or `scope=all` (all visible). */
+        post: operations["requests_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["requests_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        patch: operations["requests_update"];
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["requests_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["requests_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Mixin for API views that operate inside one organization. */
+        get: operations["requests_comments_list"];
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["requests_comments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["requests_duplicate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["requests_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Mixin for API views that operate inside one organization. */
+        post: operations["requests_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/requests/{id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Audit events of one request, for anyone who can see the request. */
+        get: operations["requests_timeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/org/workflow-templates": {
@@ -305,6 +546,22 @@ export interface components {
          * @enum {string}
          */
         ApproverTypeEnum: "user" | "role";
+        AuditEvent: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly verb: string;
+            /** Format: uuid */
+            readonly actor_id: string | null;
+            /** Format: email */
+            readonly actor_email: string;
+            readonly target_type: string;
+            /** Format: uuid */
+            readonly target_id: string;
+            readonly data: unknown;
+            readonly request_id: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
         /** @enum {unknown} */
         BlankEnum: "";
         /**
@@ -315,11 +572,33 @@ export interface components {
          * @enum {string}
          */
         CategoryEnum: "purchase" | "expense" | "access" | "other";
+        Comment: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly author: components["schemas"]["User"];
+            readonly body: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        CommentInputRequest: {
+            body: string;
+        };
         CreateInvitationRequest: {
             /** Format: email */
             email: string;
             /** @default member */
             role: components["schemas"]["InvitableRoleEnum"];
+        };
+        CreateRequestRequest: {
+            title: string;
+            /** @default  */
+            description: string;
+            /** Format: decimal */
+            amount?: string | null;
+            /** @default  */
+            currency: string;
+            /** Format: uuid */
+            template: string;
         };
         CsrfResponse: {
             csrfToken: string;
@@ -334,8 +613,32 @@ export interface components {
             readonly role: components["schemas"]["RoleEnum"];
             readonly member_count: number;
         };
+        /**
+         * @description * `regular` - regular
+         *     * `fallback` - fallback
+         * @enum {string}
+         */
+        DecisionEnum: "regular" | "fallback";
+        DecisionRequest: {
+            /** @description The step being decided, as shown to the user. */
+            step: number;
+            /** @default  */
+            comment: string;
+        };
         DraftRequest: {
             steps: components["schemas"]["StepInputRequest"][];
+        };
+        InboxItem: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly step_order: number;
+            readonly step_name: string;
+            readonly approver_type: components["schemas"]["ApproverTypeEnum"];
+            readonly approver_role: components["schemas"]["RoleEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly needs_admin: boolean;
+            readonly request: components["schemas"]["RequestList"];
         };
         /**
          * @description * `admin` - Admin
@@ -379,6 +682,15 @@ export interface components {
             /** @description Shown once. Share it if email delivery fails. */
             readonly accept_url: string;
         };
+        /**
+         * @description * `task_assigned` - A request needs your decision
+         *     * `task_needs_admin` - A request needs an administrator
+         *     * `request_approved` - Your request was approved
+         *     * `request_rejected` - Your request was rejected
+         *     * `comment_added` - New comment on a request
+         * @enum {string}
+         */
+        KindEnum: "task_assigned" | "task_needs_admin" | "request_approved" | "request_rejected" | "comment_added";
         LoginRequest: {
             /** Format: email */
             email: string;
@@ -402,6 +714,20 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
         };
+        Notification: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly kind: components["schemas"]["KindEnum"];
+            /** Format: uuid */
+            readonly request: string;
+            readonly request_title: string;
+            /** Format: date-time */
+            readonly read_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /** @enum {unknown} */
+        NullEnum: null;
         Organization: {
             /** Format: uuid */
             readonly id: string;
@@ -412,6 +738,19 @@ export interface components {
         };
         OrganizationRequest: {
             name: string;
+        };
+        PaginatedAuditEventList: {
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?cursor=cD00ODY%3D"
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+             */
+            previous?: string | null;
+            results: components["schemas"]["AuditEvent"][];
         };
         PaginatedMemberList: {
             /**
@@ -426,6 +765,32 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Member"][];
         };
+        PaginatedNotificationList: {
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?cursor=cD00ODY%3D"
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+             */
+            previous?: string | null;
+            results: components["schemas"]["Notification"][];
+        };
+        PaginatedRequestListList: {
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?cursor=cD00ODY%3D"
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+             */
+            previous?: string | null;
+            results: components["schemas"]["RequestList"][];
+        };
         PatchedChangeRoleRequest: {
             role?: components["schemas"]["RoleEnum"];
         };
@@ -437,6 +802,90 @@ export interface components {
             category?: components["schemas"]["CategoryEnum"];
             description?: string;
         };
+        PatchedUpdateRequestRequest: {
+            title?: string;
+            /** @default  */
+            description: string;
+            /** Format: decimal */
+            amount?: string | null;
+            /** @default  */
+            currency: string;
+            revision?: number;
+        };
+        PendingStep: {
+            order: number;
+            name: string;
+            approver_type: string;
+            approver_user: components["schemas"]["User"] | null;
+            approver_role: string;
+        };
+        Permissions: {
+            can_edit: boolean;
+            can_submit: boolean;
+            can_cancel: boolean;
+            can_duplicate: boolean;
+            decision: (components["schemas"]["DecisionEnum"] | components["schemas"]["NullEnum"]) | null;
+        };
+        RequestDetail: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly title: string;
+            readonly status: components["schemas"]["RequestStatusEnum"];
+            readonly template: components["schemas"]["TemplateRef"];
+            /** Format: decimal */
+            readonly amount: string | null;
+            readonly currency: string;
+            readonly requester: components["schemas"]["User"];
+            readonly current_step: number | null;
+            readonly step_count: number | null;
+            /** Format: date-time */
+            readonly submitted_at: string | null;
+            /** Format: date-time */
+            readonly closed_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly description: string;
+            readonly version: number | null;
+            readonly revision: number;
+            readonly tasks: components["schemas"]["Task"][];
+            readonly upcoming_steps: components["schemas"]["PendingStep"][];
+            readonly needs_admin: boolean;
+            readonly permissions: components["schemas"]["Permissions"];
+            /** Format: uuid */
+            readonly duplicated_from: string | null;
+        };
+        RequestList: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly title: string;
+            readonly status: components["schemas"]["RequestStatusEnum"];
+            readonly template: components["schemas"]["TemplateRef"];
+            /** Format: decimal */
+            readonly amount: string | null;
+            readonly currency: string;
+            readonly requester: components["schemas"]["User"];
+            readonly current_step: number | null;
+            readonly step_count: number | null;
+            /** Format: date-time */
+            readonly submitted_at: string | null;
+            /** Format: date-time */
+            readonly closed_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /**
+         * @description * `draft` - Draft
+         *     * `in_review` - In review
+         *     * `approved` - Approved
+         *     * `rejected` - Rejected
+         *     * `cancelled` - Cancelled
+         * @enum {string}
+         */
+        RequestStatusEnum: "draft" | "in_review" | "approved" | "rejected" | "cancelled";
         /**
          * @description * `owner` - Owner
          *     * `admin` - Admin
@@ -444,13 +893,6 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "owner" | "admin" | "member";
-        /**
-         * @description * `draft` - Draft
-         *     * `published` - Published
-         *     * `archived` - Archived
-         * @enum {string}
-         */
-        StatusEnum: "draft" | "published" | "archived";
         Step: {
             /** Format: uuid */
             readonly id: string;
@@ -468,6 +910,34 @@ export interface components {
             /** @default  */
             approver_role: components["schemas"]["RoleEnum"] | components["schemas"]["BlankEnum"];
         };
+        SubmitRequest: {
+            /** @description Revision of the draft the user reviewed. */
+            revision: number;
+        };
+        Task: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly step_order: number;
+            readonly step_name: string;
+            readonly approver_type: components["schemas"]["ApproverTypeEnum"];
+            readonly approver_user: components["schemas"]["User"] | null;
+            readonly approver_role: components["schemas"]["RoleEnum"];
+            readonly status: components["schemas"]["TaskStatusEnum"];
+            readonly decided_by: components["schemas"]["User"] | null;
+            /** Format: date-time */
+            readonly decided_at: string | null;
+            readonly comment: string;
+            /** @description Decided by an admin because no regular approver was eligible. */
+            readonly fallback: boolean;
+        };
+        /**
+         * @description * `open` - Open
+         *     * `approved` - Approved
+         *     * `rejected` - Rejected
+         *     * `cancelled` - Cancelled
+         * @enum {string}
+         */
+        TaskStatusEnum: "open" | "approved" | "rejected" | "cancelled";
         TemplateCreateRequest: {
             name: string;
             /** @default other */
@@ -502,6 +972,24 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        TemplateRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        TimelineEvent: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly verb: string;
+            /** Format: email */
+            readonly actor_email: string;
+            readonly data: unknown;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        UnreadCount: {
+            unread: number;
+        };
         User: {
             /** Format: uuid */
             readonly id: string;
@@ -515,7 +1003,7 @@ export interface components {
             /** Format: uuid */
             readonly id: string;
             readonly number: number;
-            readonly status: components["schemas"]["StatusEnum"];
+            readonly status: components["schemas"]["VersionStatusEnum"];
             /** Format: date-time */
             readonly published_at: string | null;
             readonly published_by: string | null;
@@ -523,9 +1011,16 @@ export interface components {
             readonly updated_at: string;
             readonly steps: components["schemas"]["Step"][];
         };
+        /**
+         * @description * `draft` - Draft
+         *     * `published` - Published
+         *     * `archived` - Archived
+         * @enum {string}
+         */
+        VersionStatusEnum: "draft" | "published" | "archived";
         VersionSummary: {
             readonly number: number;
-            readonly status: components["schemas"]["StatusEnum"];
+            readonly status: components["schemas"]["VersionStatusEnum"];
             /** Format: date-time */
             readonly published_at: string | null;
         };
@@ -711,6 +1206,65 @@ export interface operations {
             };
         };
     };
+    audit_events_list: {
+        parameters: {
+            query?: {
+                /** @description Actor email */
+                actor?: string;
+                /** @description The pagination cursor value. */
+                cursor?: string;
+                /** @description ISO 8601, inclusive */
+                from?: string;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description Target id (UUID) */
+                target?: string;
+                /** @description ISO 8601, exclusive */
+                to?: string;
+                /** @description Prefix, e.g. `request.` or `member.role_changed` */
+                verb?: string;
+            };
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAuditEventList"];
+                };
+            };
+        };
+    };
+    inbox_list: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxItem"][];
+                };
+            };
+        };
+    };
     v1_org_invitations_list: {
         parameters: {
             query?: never;
@@ -856,6 +1410,394 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Member"];
+                };
+            };
+        };
+    };
+    notifications_list: {
+        parameters: {
+            query?: {
+                /** @description The pagination cursor value. */
+                cursor?: string;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedNotificationList"];
+                };
+            };
+        };
+    };
+    notifications_mark_read: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    notifications_unread: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCount"];
+                };
+            };
+        };
+    };
+    requests_list: {
+        parameters: {
+            query?: {
+                /** @description The pagination cursor value. */
+                cursor?: string;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description mine (default) or all visible */
+                scope?: "all" | "mine";
+                status?: "approved" | "cancelled" | "draft" | "in_review" | "rejected";
+            };
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedRequestListList"];
+                };
+            };
+        };
+    };
+    requests_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedUpdateRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_approve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_cancel: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_comments_list: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"][];
+                };
+            };
+        };
+    };
+    requests_comments_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentInputRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+        };
+    };
+    requests_duplicate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_reject: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_submit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+        };
+    };
+    requests_timeline: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Slug of the active organization. */
+                "X-Organization": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineEvent"][];
                 };
             };
         };
