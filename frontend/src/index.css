@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "@fontsource-variable/schibsted-grotesk";
+
+/* FlowOps tokens: ink + paper for structure, one signal blue for action,
+   and approval-state colors reserved for meaning (approved / pending / rejected). */
+@theme {
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #16233f;
+  --color-ink-soft: #24345a;
+  --color-ink-line: #33456f;
+  --color-paper: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-line: #dce1ea;
+  --color-muted: #5a6478;
+  --color-signal: #2d5be3;
+  --color-signal-strong: #1f46c0;
+  --color-signal-wash: #e8eefc;
+  --color-approve: #1e7f52;
+  --color-approve-wash: #e4f3ea;
+  --color-pending: #9a6514;
+  --color-pending-wash: #fbf0dc;
+  --color-reject: #b8352a;
+  --color-reject-wash: #fbe7e5;
+
+  --text-display: 2.75rem;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.025em;
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* The one orchestrated motion: the approval stamp lands on the routing slip. */
+@keyframes stamp-in {
+  0% { opacity: 0; transform: scale(1.6) rotate(-14deg); }
+  60% { opacity: 1; transform: scale(0.94) rotate(-8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-8deg); }
+}
+.stamp { transform: rotate(-8deg); animation: stamp-in 520ms cubic-bezier(.2,.9,.3,1.2) 450ms both; }
+@media (prefers-reduced-motion: reduce) {
+  .stamp { animation: none; }
+}
