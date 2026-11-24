@@ -23,9 +23,13 @@ def record(
     target_type: str,
     target_id: UUID,
     data: dict[str, Any] | None = None,
+    request_seq: int | None = None,
 ) -> AuditEvent:
     if not connection.in_atomic_block:  # pragma: no cover - programming error guard
         raise RuntimeError("audit.record() must run inside the transaction that makes the change")
+    if (target_type == "request") != (request_seq is not None):
+        # Request events are numbered by apps.requests.services.record_request_event (AUD-01).
+        raise RuntimeError("request events need a request_seq, and only request events may have one")
     request_id = request_id_var.get()
     return AuditEvent.objects.create(
         organization=organization,
@@ -36,4 +40,5 @@ def record(
         target_id=target_id,
         data=data or {},
         request_id="" if request_id == "-" else request_id,
+        request_seq=request_seq,
     )
