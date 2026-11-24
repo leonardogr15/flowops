@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "common",
     "apps.accounts",
     "apps.organizations",
+    "apps.workflows",
 ]
 
 MIDDLEWARE = [
@@ -114,6 +115,7 @@ SESSION_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", True)
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False  # the SPA reads it to send X-CSRFToken
+CSRF_FAILURE_VIEW = "common.views.csrf_failure"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -136,6 +138,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "login": env("LOGIN_THROTTLE_RATE", "5/min"),
         "login_ip": env("LOGIN_IP_THROTTLE_RATE", "30/min"),
+        "invitation": env("INVITATION_THROTTLE_RATE", "30/min"),
     },
     "UNAUTHENTICATED_USER": None,
     # Number of trusted reverse proxies in front of Django. Throttling uses the client IP that the
@@ -149,7 +152,16 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "RoleEnum": "apps.organizations.models.Role",
+        "InvitableRoleEnum": "apps.organizations.models.INVITABLE_ROLE_CHOICES",
+    },
 }
+
+# Outgoing email. The local demo prints messages to the API log; production sets SMTP via env.
+MAILERS = {"default": {"BACKEND": env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")}}
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "FlowOps <no-reply@flowops.test>")
+FRONTEND_URL = env("FRONTEND_URL", "http://localhost:8080")
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
