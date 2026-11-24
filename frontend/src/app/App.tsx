@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation, type RouteObject } from "react-router";
 
 import { ApiError } from "../api/client";
 import { LoginPage } from "../features/auth/LoginPage";
-import { SessionProvider, useSession } from "../features/auth/session";
+import { handleUnauthorized, SessionProvider, useSession } from "../features/auth/session";
 import { CreateOrganizationDialog } from "../features/orgs/CreateOrganizationDialog";
 import { OrganizationProvider, useOrganization } from "../features/orgs/organization";
 import { NoOrganizationPage, OverviewPage, SettingsPage } from "../features/orgs/pages";
@@ -21,7 +21,12 @@ import { AppShell } from "../shared/layout/AppShell";
 import { Button, PageLoading, StateMessage } from "../shared/ui/primitives";
 
 export function makeQueryClient(): QueryClient {
-  return new QueryClient({
+  const client: QueryClient = new QueryClient({
+    // FE-01: any 401 after sign-in ends the session in the UI too (see handleUnauthorized).
+    queryCache: new QueryCache({ onError: (error) => handleUnauthorized(client, error) }),
+    mutationCache: new MutationCache({
+      onError: (error, _vars, _ctx, mutation) => handleUnauthorized(client, error, mutation.meta?.authFlow === true),
+    }),
     defaultOptions: {
       queries: {
         // Never retry auth/permission/not-found answers; retry transient failures once.
@@ -30,6 +35,7 @@ export function makeQueryClient(): QueryClient {
       },
     },
   });
+  return client;
 }
 
 /** Redirects anonymous visitors to /login, remembering where they wanted to go. */

@@ -20,6 +20,8 @@ REST_FRAMEWORK = {
         "login_ip": "30/min",
         "invitation": "30/min",
         "comment": "30/min",
+        "invitation_create": "30/hour",
+        "organization_create": "5/hour",
     },
     "NUM_PROXIES": 0,
 }

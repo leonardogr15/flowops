@@ -127,6 +127,8 @@ def test_submit_fails_with_422_when_only_the_requester_could_approve(
     rid = create_via_api(raj, demo, template=str(flow.pk))["id"]
     response = act(raj, rid, "submit")
     assert response.status_code == 422
+    assert response.json()["type"] == "urn:flowops:problem:no_eligible_approver"  # BE-03
+    assert response.json()["detail"] == "Some steps have no one who can approve them right now."
     assert response.json()["errors"]["steps"] == ["No one other than you can approve this step: Raj decides."]
     assert Request.objects.get(pk=rid).status == RequestStatus.DRAFT
 
@@ -337,7 +339,7 @@ def test_designated_approver_leaving_hands_the_step_to_admins(
     detail = adam.get(f"{URL}/{rid}").json()
     assert detail["needs_admin"] is True
     assert detail["permissions"]["decision"] == "fallback"
-    assert [i["request"]["id"] for i in adam.get("/api/v1/org/inbox").json()] == [rid]
+    assert [i["request"]["id"] for i in adam.get("/api/v1/org/inbox").json()["results"]] == [rid]
     assert act(maya, rid, "approve").status_code == 403  # still not the requester
     without_reason = act(adam, rid, "approve")
     assert without_reason.status_code == 400
@@ -455,10 +457,11 @@ def test_inbox_lists_decidable_tasks_without_n_plus_one(
         act(maya, rid, "submit")
     raj = as_user(demo.raj)
     with django_assert_max_num_queries(8):
-        items = raj.get("/api/v1/org/inbox").json()
+        items = raj.get("/api/v1/org/inbox").json()["results"]
     assert len(items) == 4
     assert all(i["needs_admin"] is False for i in items)
-    assert as_user(demo.adam).get("/api/v1/org/inbox").json() == []  # step 1 belongs to Raj
+    assert all(i["request"]["step_count"] == 3 for i in items)  # BE-02: totals are filled in
+    assert as_user(demo.adam).get("/api/v1/org/inbox").json()["results"] == []  # step 1 belongs to Raj
 
 
 # --- regressions from the batch 3a security review --------------------------------------------

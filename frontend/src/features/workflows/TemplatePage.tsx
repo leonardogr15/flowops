@@ -6,7 +6,7 @@ import { ApiError, type Category, type Member, type TemplateDetail } from "../..
 import { ConfirmDialog, Select, useNotice } from "../../shared/ui/overlays";
 import { Button, Field, PageLoading, StateMessage } from "../../shared/ui/primitives";
 import { canManage, useOrganization } from "../orgs/organization";
-import { useMembers } from "../people/queries";
+import { useAllMembers } from "../people/queries";
 import { CATEGORY_LABEL, useCreateTemplate, usePublish, useSaveDraft, useTemplate, useUpdateTemplate, type TemplateFields } from "./queries";
 import { RoutePreview } from "./RoutePreview";
 import {
@@ -35,9 +35,9 @@ export function TemplatePage() {
   const { active } = useOrganization();
   const admin = canManage(active?.role);
   const template = useTemplate(id);
-  const members = useMembers();
+  const members = useAllMembers();
 
-  if (!id) return admin ? <TemplateEditor members={members.data?.results ?? []} /> : <NotAllowed />;
+  if (!id) return admin ? <TemplateEditor members={members.data ?? []} /> : <NotAllowed />;
   if (template.isPending || members.isPending) return <PageLoading label="Loading workflow" />;
   if (template.isError) {
     const notFound = template.error instanceof ApiError && template.error.status === 404;
@@ -50,7 +50,7 @@ export function TemplatePage() {
       </>
     );
   }
-  const memberList = members.data?.results ?? [];
+  const memberList = members.data ?? [];
   return admin ? (
     <TemplateEditor key={template.data.id} template={template.data} members={memberList} />
   ) : (

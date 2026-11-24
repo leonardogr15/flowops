@@ -27,11 +27,11 @@ export function InboxPage() {
         <StateMessage tone="error" title="Your inbox didn't load">
           {inbox.error instanceof ApiError ? inbox.error.problem.detail : "Reload the page to try again."}
         </StateMessage>
-      ) : inbox.data.length === 0 ? (
+      ) : inbox.data.results.length === 0 ? (
         <StateMessage title="Nothing waiting for you">When a request reaches a step you approve, it appears here.</StateMessage>
       ) : (
         <ul className="max-w-4xl divide-y divide-line rounded-lg bg-surface ring-1 ring-line">
-          {inbox.data.map((item) => (
+          {inbox.data.results.map((item) => (
             <li key={item.id}>
               <Link to={`/requests/${item.request.id}`} className="flex flex-wrap items-center gap-x-6 gap-y-1.5 px-4 py-4 hover:bg-paper focus-visible:bg-paper sm:px-5">
                 <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
@@ -55,6 +55,12 @@ export function InboxPage() {
             </li>
           ))}
         </ul>
+      )}
+      {inbox.data && inbox.data.count > inbox.data.results.length && (
+        <p role="status" className="mt-4 max-w-4xl text-sm text-muted">
+          Showing the {inbox.data.results.length} oldest of {inbox.data.count} steps waiting for you. Decide these first and the rest
+          will appear here.
+        </p>
       )}
     </>
   );

@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 
 import { api, ApiError, unwrap, type AuditEvent } from "../../api/client";
+import { cursorOf } from "../../api/pagination";
 import { Select } from "../../shared/ui/overlays";
 import { Button, Field, PageLoading, StateMessage } from "../../shared/ui/primitives";
 import { canManage, useOrganization } from "../orgs/organization";
@@ -49,7 +50,7 @@ export function AuditPage() {
           },
         }),
       ),
-    getNextPageParam: (last) => (last.next ? (new URL(last.next).searchParams.get("cursor") ?? undefined) : undefined),
+    getNextPageParam: (last) => cursorOf(last.next),
     enabled: Boolean(slug) && canManage(active?.role),
   });
 

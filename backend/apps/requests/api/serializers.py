@@ -8,7 +8,7 @@ from rest_framework import serializers
 from apps.accounts.api.serializers import UserSerializer
 from apps.audit.models import AuditEvent
 
-from .. import policy
+from .. import policy, services
 from ..models import ApprovalTask, Comment, Request
 from ..services import RequestFields
 
@@ -42,6 +42,16 @@ class DecisionSerializer(serializers.Serializer[None]):
 
 class SubmitSerializer(serializers.Serializer[None]):
     revision = serializers.IntegerField(min_value=1, help_text="Revision of the draft the user reviewed.")
+
+
+class CancelSerializer(serializers.Serializer[None]):
+    reason = serializers.CharField(
+        max_length=2000,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Required only when an admin cancels the request of someone who is no longer a member.",
+    )
 
 
 class CommentInputSerializer(serializers.Serializer[None]):
@@ -124,6 +134,9 @@ class PermissionsSerializer(serializers.Serializer[None]):
     can_edit = serializers.BooleanField()
     can_submit = serializers.BooleanField()
     can_cancel = serializers.BooleanField()
+    cancel_requires_reason = serializers.BooleanField(
+        help_text="An admin may cancel because the requester left; a reason is required."
+    )
     can_duplicate = serializers.BooleanField()
     decision = serializers.ChoiceField(choices=["regular", "fallback"], allow_null=True)
 
@@ -196,10 +209,17 @@ class RequestDetailSerializer(RequestListSerializer):
         membership = self.context["membership"]
         mine = obj.requester_id == membership.user_id
         task = self._open_task(obj)
+        for_former_member = (
+            not mine
+            and obj.status == "in_review"
+            and membership.has_role("admin")
+            and not services.requester_is_member(obj)
+        )
         return {
             "can_edit": mine and obj.status == "draft",
             "can_submit": mine and obj.status == "draft",
-            "can_cancel": mine and obj.status in ("draft", "in_review"),
+            "can_cancel": (mine and obj.status in ("draft", "in_review")) or for_former_member,
+            "cancel_requires_reason": for_former_member,
             "can_duplicate": mine and obj.status in ("approved", "rejected", "cancelled"),
             "decision": policy.decision_mode(task, membership) if task else None,
         }
@@ -227,3 +247,9 @@ class InboxItemSerializer(serializers.ModelSerializer[ApprovalTask]):
         return self.context["membership"].user_id != obj.approver_user_id and not (
             obj.approver_type == "role" and self.context["membership"].has_role(obj.approver_role)
         )
+
+
+class InboxSerializer(serializers.Serializer[None]):
+    count = serializers.IntegerField(help_text="All open tasks waiting for you, including those not listed.")
+    results = InboxItemSerializer(many=True, help_text="The oldest tasks first, at most `limit`.")
+    limit = serializers.IntegerField()

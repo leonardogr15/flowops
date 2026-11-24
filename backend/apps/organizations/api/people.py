@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.api.serializers import UserSerializer
 from apps.accounts.models import User
+from common.throttling import CreateRateThrottle
 
 from ..members import (
     accept_invitation,
@@ -51,6 +52,8 @@ class InvitationsView(TenantScopedMixin, generics.GenericAPIView[Any]):
     permission_classes = [permissions.IsAuthenticated, IsOrgAdmin]
     serializer_class = InvitationSerializer
     pagination_class = None  # bounded: one open invitation per email
+    throttle_classes = [CreateRateThrottle]  # sending invitations only (SEC-02)
+    throttle_scope = "invitation_create"
 
     @extend_schema(responses=InvitationSerializer(many=True))
     def get(self, request: Request) -> Response:

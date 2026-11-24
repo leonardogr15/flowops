@@ -59,12 +59,15 @@ interface ConfirmProps {
   busy?: boolean;
   error?: string;
   onConfirm: () => void;
+  /** Extra fields shown above the buttons, for example a required reason. */
+  children?: ReactNode;
 }
 
 /** Confirmation for consequential actions. The confirm button repeats the action's name. */
-export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, tone = "primary", busy, error, onConfirm }: ConfirmProps) {
+export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel, tone = "primary", busy, error, onConfirm, children }: ConfirmProps) {
   return (
     <Modal open={open} onOpenChange={onOpenChange} title={title} description={description} role="alertdialog">
+      {children}
       {error && (
         <p role="alert" className="mb-4 rounded-md bg-reject-wash px-3 py-2 text-sm text-reject">
           {error}

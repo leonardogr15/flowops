@@ -44,7 +44,7 @@ export const handlers = [
   // Shell-wide polling (inbox count, notification bell); tests override these when they matter.
   http.get("/api/v1/org/inbox", ({ request }) => {
     const t = tenant(request);
-    return t instanceof Response ? t : HttpResponse.json([]);
+    return t instanceof Response ? t : HttpResponse.json({ count: 0, limit: 200, results: [] });
   }),
   http.get("/api/v1/org/notifications/unread", ({ request }) => {
     const t = tenant(request);

@@ -8,6 +8,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from common.throttling import CreateRateThrottle
+
 from ..models import Membership
 from ..permissions import IsOrgMember, ReadMemberWriteAdmin
 from ..selectors import members_of, memberships_for_user
@@ -30,6 +32,8 @@ class MyOrganizationsView(generics.ListCreateAPIView[Membership]):
 
     tenant_scoped = False
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [CreateRateThrottle]  # creating organizations only (SEC-02)
+    throttle_scope = "organization_create"
     pagination_class = None
     serializer_class = MyMembershipSerializer
 

@@ -5,9 +5,9 @@
 Multi-tenant approval workflows for operations teams: purchases, expenses and access requests go to
 the right approvers, in order, with a record of every decision.
 
-> **Status: early development.** Accounts, organizations, people management, versioned approval
-> workflows and the full request lifecycle (submit, approve, reject, audit) work end to end. See
-> [Roadmap](#roadmap).
+> **Status: feature-complete MVP, not deployed.** Accounts, organizations, people management,
+> versioned approval workflows and the full request lifecycle (submit, approve, reject, audit) work
+> end to end and run locally with one command. See [Roadmap](#roadmap).
 
 ![Django](https://img.shields.io/badge/Django-6.1-0C4B33) ![React](https://img.shields.io/badge/React-19-149ECA) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791) ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
@@ -21,7 +21,8 @@ the right approvers, in order, with a record of every decision.
 - **Member management.** Change roles, remove members or leave an organization. An organization always keeps at least one owner, even under concurrent changes.
 - **Workflow templates.** Define who approves each kind of request and in what order, with a visual step builder and live route preview. Templates are versioned: admins edit a draft and publish it, published versions never change, and members only see published routes.
 - **Requests and approvals.** Create a draft and submit it; it follows the workflow version it was submitted with, step by step. Approvers decide from their inbox, a rejection needs a reason, and rejected requests can be duplicated into a new draft. Nobody can approve their own request, whatever their role. When two people decide the same step at once, exactly one decision counts and the other person is told.
-- **Admin fallback.** If nobody left can decide a step (the approver left or changed role), an admin other than the requester can decide it with a mandatory comment, recorded as an admin decision.
+- **Admin fallback.** If nobody left can decide a step (the approver left or changed role), an admin other than the requester can decide it with a mandatory comment, recorded as an admin decision. Admins are notified when a step loses its last possible approver.
+- **People who leave.** Their requests are kept and approvers can still decide them. An admin can cancel such a request while it is in review, with a mandatory reason recorded in the audit log; requests of current members can only be cancelled by their requester.
 - **Audit trail.** Request changes, decisions, comments, membership changes and workflow changes are recorded in an append-only log: per request for everyone who can see it, organization-wide for admins.
 - **Inbox and notifications.** Steps waiting for you, a count in the navigation, and in-app notifications for assignments, outcomes and comments.
 - **Web app.** Responsive React UI with loading, empty, error and permission states, keyboard navigation and automated accessibility checks.
@@ -72,7 +73,8 @@ cd flowops
 make demo   # creates .env with random local secrets, builds, starts, seeds demo data
 ```
 
-Without `make` (for example on Windows), run the same steps directly:
+`make` picks `python3`, `python` or `py`, whichever exists. Without `make` (for example on plain
+Windows), run the same steps directly:
 
 ```bash
 python scripts/make_env.py
@@ -127,10 +129,10 @@ endpoints need `X-Organization: <organization slug>`.
 | `GET /org/workflow-templates` · `GET /org/workflow-templates/{id}` | session | yes | published only | yes | yes |
 | `POST /org/workflow-templates` · `PATCH …/{id}` · `PUT …/{id}/draft` · `POST …/{id}/publish` | session | yes | no (403) | yes | yes |
 | `GET /org/requests` (`scope`, `status`) · `GET /org/requests/{id}` | session | yes | own and taken part in² | all | all |
-| `POST /org/requests` · `PATCH /org/requests/{id}` (draft) · `POST …/{id}/submit` · `…/cancel` · `…/duplicate` | session | yes | requester | requester | requester |
+| `POST /org/requests` · `PATCH /org/requests/{id}` (draft) · `POST …/{id}/submit` · `…/cancel`⁴ · `…/duplicate` | session | yes | requester | requester | requester |
 | `POST /org/requests/{id}/approve` · `…/reject` (body: `step`, `comment`) | session | yes | eligible³ | eligible³ | eligible³ |
 | `GET` and `POST /org/requests/{id}/comments` · `GET …/{id}/timeline` | session | yes | if visible | yes | yes |
-| `GET /org/inbox` · `GET /org/notifications` · `GET …/unread` · `POST …/{id}/read` | session | yes | own | own | own |
+| `GET /org/inbox`⁵ · `GET /org/notifications` · `GET …/unread` · `POST …/{id}/read` | session | yes | own | own | own |
 | `GET /org/audit-events` | session | yes | no (403) | yes | yes |
 
 ¹ Admins cannot grant, change or remove the owner role; only owners can. The last owner can never be
@@ -140,7 +142,14 @@ demoted or removed (`409`).
 
 ³ The named member, or anyone with the step's role or higher; never the requester. If nobody is
 eligible, admins and owners other than the requester decide with a required comment. A stale `step`
-or `revision` gets `409`; submitting when a step has no possible approver gets `422`.
+or `revision` gets `409`; submitting when a step has no possible approver gets `422`
+(`urn:flowops:problem:no_eligible_approver`).
+
+⁴ Admins and owners may also cancel a request in review whose requester is no longer a member, with a
+required `reason` that is written to the audit log. For current members' requests they get `403`.
+
+⁵ Returns `{count, results, limit}`: every open task waiting for you is counted, and the oldest
+`limit` (200) are listed.
 
 Status codes: `401` if not signed in, `403` if your role is not allowed, `404` for organizations you
 don't belong to (indistinguishable from ones that don't exist), and `400` if the organization header
@@ -157,6 +166,8 @@ is missing. Errors use `application/problem+json`.
 | Login throttling per (client IP, email) and per client IP across all emails, with a trusted proxy count so `X-Forwarded-For` can't be spoofed; emails are hashed in throttle keys | `apps/accounts/throttles.py`, `NUM_PROXIES` |
 | Cross-tenant requests return 404; isolation harness covers every endpoint, including object ids from another organization | `apps/organizations/tests/test_isolation.py` |
 | Invitation tokens: 256-bit random, stored only as SHA-256, single use, 7-day expiry, bound to the invited email; re-inviting revokes the previous link | `apps/organizations/members.py` |
+| Invitation tokens never reach the logs: Django log lines, the nginx access log (path and `Referer`) and error messages show `[redacted]`; gunicorn's access log is off (Django logs every request). CI fails if a raw token appears in the end-to-end stack's logs | `common/redaction.py`, `frontend/nginx.conf`, `.github/workflows/ci.yml` |
+| Sending invitations (30 per hour) and creating organizations (5 per hour) are limited per user, so an account can't be used to send bulk email; limits answer `429` with `Retry-After` | `common/throttling.py`, `config/settings/base.py` |
 | Role changes re-read the acting member and lock owner rows, so concurrent demotions cannot remove the last owner | `apps/organizations/members.py` |
 | Request transitions run under row locks in a fixed order (template, request, open task). Decisions carry the current step and submits the current revision, so double clicks, retries and simultaneous decisions apply once | `apps/requests/services.py`, ADR-0006 |
 | Requesters never decide their own request, including admins and owners; admin fallback needs a comment and is flagged in the audit log | `apps/requests/policy.py` |
@@ -180,14 +191,18 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 | Backend lint/types | `make lint-api` | ruff, mypy (strict, with Django and DRF plugins) |
 | Frontend | `make test-web` | Sign-in, redirects, organization switching, settings, members and roles, invitations and acceptance, workflow builder and publishing, requests (create, submit, approve, reject, lost race), inbox, notifications, audit log, axe accessibility checks |
 | Frontend lint/types | `make lint-web` | oxlint (warnings fail), TypeScript strict |
-| End-to-end | `make e2e-up`, then `make e2e` with `DEMO_PASSWORD` exported | Playwright on desktop and mobile viewports against the real stack: sign-in, invite and join, build and publish a workflow, a request approved by Raj, Adam and Olivia with its full audit trail, rejection and duplication, self-approval refused in the UI and the API, two admins deciding the same step at once |
+| End-to-end | `make e2e-up`, then `make e2e` | Playwright on desktop and mobile viewports against the real stack: sign-in, an expired session that returns to the same page, invite and join, build and publish a workflow, a request approved by Raj, Adam and Olivia with its full audit trail, rejection and duplication, self-approval refused in the UI and the API, two admins deciding the same step at once |
 | Contract | `make schema-check` | Committed OpenAPI schema matches the code; generated TypeScript types match the schema (CI) |
 
 The CI workflow (`.github/workflows/ci.yml`) is configured to run all of the above on every push and pull request, plus gitleaks over the full history.
 
-`make e2e-up` starts the stack with `docker-compose.e2e.yml`: the API runs the production image under
-gunicorn, without the source bind mount or the development autoreloader, so editing files while the
-suite runs cannot restart the server mid-test.
+`make e2e-up` starts a separate Compose project (`flowops-e2e`, with its own database) from
+`docker-compose.e2e.yml`, so test data never mixes with the demo; stop the demo first (`make down`),
+because both use the same ports. The API runs the production image under gunicorn, without the source
+bind mount or the development autoreloader, so editing files while the suite runs cannot restart the
+server mid-test. `make e2e` reads `DEMO_PASSWORD` from `.env`. `make e2e-reset` deletes only the
+end-to-end database. Run `make web-install` once before the frontend and end-to-end targets; `make
+help` lists every target.
 
 ## Project layout
 

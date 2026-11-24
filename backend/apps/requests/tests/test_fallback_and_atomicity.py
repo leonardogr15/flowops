@@ -57,7 +57,7 @@ def test_fallback_never_lets_the_requester_decide_even_as_owner(
     for action in ("approve", "reject"):
         response = _post(owner_client, req.pk, action, comment="I approve my own purchase")
         assert response.status_code == 403  # type: ignore[attr-defined]
-    assert owner_client.get("/api/v1/org/inbox").json() == []
+    assert owner_client.get("/api/v1/org/inbox").json()["results"] == []
     detail = owner_client.get(f"{URL}/{req.pk}").json()
     assert (detail["needs_admin"], detail["permissions"]["decision"]) == (True, None)
 

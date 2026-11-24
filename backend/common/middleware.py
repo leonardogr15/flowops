@@ -9,6 +9,7 @@ from collections.abc import Callable
 from django.http import HttpRequest, HttpResponse
 
 from .context import request_id_var
+from .redaction import redact
 
 logger = logging.getLogger("flowops.request")
 _VALID_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
@@ -36,7 +37,7 @@ class RequestIDMiddleware:
                 extra={
                     "request_id": request_id,
                     "method": request.method,
-                    "path": request.path,
+                    "path": redact(request.path),
                     "status": response.status_code,
                     "duration_ms": round((time.perf_counter() - started) * 1000, 1),
                 },

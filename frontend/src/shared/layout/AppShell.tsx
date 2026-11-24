@@ -36,7 +36,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, signOut } = useSession();
   const { active } = useOrganization();
   const inbox = useInbox();
-  const waiting = inbox.data?.length ?? 0;
+  const waiting = inbox.data?.count ?? 0;
   const navigate = useNavigate();
 
   return (

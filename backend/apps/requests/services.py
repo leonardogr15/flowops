@@ -18,9 +18,9 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
 
 from apps.audit.service import record
-from apps.notifications.models import NotificationKind
+from apps.notifications.models import Notification, NotificationKind
 from apps.notifications.service import notify
-from apps.organizations.models import Membership
+from apps.organizations.models import Membership, Role
 from apps.workflows.models import Step, VersionStatus, WorkflowTemplate
 from common.errors import Conflict
 
@@ -47,6 +47,7 @@ class InvalidTransition(Conflict):
 class NoEligibleApprover(APIValidationError):
     status_code = 422
     default_code = "no_eligible_approver"
+    summary = "Some steps have no one who can approve them right now."
 
 
 def _transition(req: Request, target: str) -> None:
@@ -220,6 +221,28 @@ def _notify_deciders(task: ApprovalTask) -> None:
     )
 
 
+def escalate_unreachable_tasks(*, organization_id: UUID) -> int:
+    """Tells admins, once per task, about open tasks nobody can decide through their step any more.
+
+    Runs after a member leaves, is removed or changes role (same transaction). A task that already
+    produced a "needs an administrator" notification is not announced again.
+    """
+    escalated = 0
+    open_tasks = ApprovalTask.objects.filter(organization_id=organization_id, status=TaskStatus.OPEN)
+    for task in open_tasks.select_related("request"):
+        if not policy.needs_admin(task):
+            continue
+        announced = Notification.objects.filter(
+            request_id=task.request_id,
+            kind=NotificationKind.TASK_NEEDS_ADMIN,
+            created_at__gte=task.created_at,
+        ).exists()
+        if not announced:
+            _notify_deciders(task)
+            escalated += 1
+    return escalated
+
+
 @transaction.atomic
 def submit(*, actor: Membership, request_id: UUID, revision: int) -> Request:
     peek = policy.visible_requests(actor).filter(pk=request_id).values_list("template_id", flat=True).first()
@@ -359,15 +382,40 @@ def decide(*, actor: Membership, request_id: UUID, step: int, approve: bool, com
     return req
 
 
+def requester_is_member(req: Request) -> bool:
+    return Membership.objects.filter(organization_id=req.organization_id, user_id=req.requester_id).exists()
+
+
 @transaction.atomic
-def cancel(*, actor: Membership, request_id: UUID) -> Request:
+def cancel(*, actor: Membership, request_id: UUID, reason: str = "") -> Request:
+    """The requester cancels their draft or request in review.
+
+    Exception (BE-01): when the requester is no longer a member, an admin or owner may cancel the
+    request while it is in review, with a mandatory reason. Requests of current members can only be
+    cancelled by the requester.
+    """
     req = _locked_visible_request(actor, request_id)
-    _require_requester(actor, req)
+    on_behalf = req.requester_id != actor.user_id
+    if on_behalf:
+        # Re-read the actor under lock: a just-demoted or removed admin cannot use the exception.
+        current = Membership.objects.select_for_update().filter(pk=actor.pk).first()
+        if current is None or not current.has_role(Role.ADMIN) or requester_is_member(req):
+            raise PermissionDenied("Only the person who created the request can do this.")
+        if req.status != RequestStatus.IN_REVIEW:
+            raise InvalidTransition("Only a request in review can be cancelled for a former member.")
+        reason = reason.strip()
+        if not reason:
+            raise APIValidationError(
+                {"reason": ["Explain why you are cancelling a former member's request."]}
+            )
     _transition(req, RequestStatus.CANCELLED)
     ApprovalTask.objects.filter(request=req, status=TaskStatus.OPEN).update(status=TaskStatus.CANCELLED)
     req.closed_at = timezone.now()
     req.save()
-    _audit(actor, "request.cancelled", req)
+    if on_behalf:
+        _audit(actor, "request.cancelled", req, reason=reason, requester_left=True)
+    else:
+        _audit(actor, "request.cancelled", req)
     return req
 
 

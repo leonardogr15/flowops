@@ -1,10 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 
 import { ApiError } from "../../api/client";
 import { Button, Field } from "../../shared/ui/primitives";
 import { RoutingSlip } from "./RoutingSlip";
-import { useSession } from "./session";
+import { sessionExpiredKey, useSession } from "./session";
 
 interface Errors {
   email?: string;
@@ -31,6 +32,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
+  const expired = useQuery({ queryKey: sessionExpiredKey, queryFn: () => false, enabled: false, initialData: false }).data;
 
   if (user) return <Navigate to={from} replace />;
 
@@ -72,6 +74,11 @@ export function LoginPage() {
           </p>
 
           <form className="mt-8 flex flex-col gap-5" onSubmit={onSubmit} noValidate aria-describedby={errors.form ? "form-error" : undefined}>
+            {expired && !errors.form && (
+              <p role="status" className="rounded-md bg-pending-wash px-3 py-2.5 text-sm text-pending">
+                Your session ended. Sign in again to continue where you left off.
+              </p>
+            )}
             {errors.form && (
               <p id="form-error" role="alert" className="rounded-md bg-reject-wash px-3 py-2.5 text-sm text-reject">
                 {errors.form}

@@ -564,6 +564,13 @@ export interface components {
         };
         /** @enum {unknown} */
         BlankEnum: "";
+        CancelRequest: {
+            /**
+             * @description Required only when an admin cancels the request of someone who is no longer a member.
+             * @default
+             */
+            reason: string;
+        };
         /**
          * @description * `purchase` - Purchase
          *     * `expense` - Expense
@@ -627,6 +634,13 @@ export interface components {
         };
         DraftRequest: {
             steps: components["schemas"]["StepInputRequest"][];
+        };
+        Inbox: {
+            /** @description All open tasks waiting for you, including those not listed. */
+            count: number;
+            /** @description The oldest tasks first, at most `limit`. */
+            results: components["schemas"]["InboxItem"][];
+            limit: number;
         };
         InboxItem: {
             /** Format: uuid */
@@ -823,6 +837,8 @@ export interface components {
             can_edit: boolean;
             can_submit: boolean;
             can_cancel: boolean;
+            /** @description An admin may cancel because the requester left; a reason is required. */
+            cancel_requires_reason: boolean;
             can_duplicate: boolean;
             decision: (components["schemas"]["DecisionEnum"] | components["schemas"]["NullEnum"]) | null;
         };
@@ -1260,7 +1276,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InboxItem"][];
+                    "application/json": components["schemas"]["Inbox"];
                 };
             };
         };
@@ -1634,7 +1650,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {

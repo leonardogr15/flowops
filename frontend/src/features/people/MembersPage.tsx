@@ -72,12 +72,17 @@ export function MembersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {members.data.results.map((m) => (
+              {members.data.pages.flatMap((page) => page.results).map((m) => (
                 <MemberRow key={m.id} member={m} actorRole={actorRole} isSelf={m.user.id === user?.id} />
               ))}
             </tbody>
           </table>
         </div>
+      )}
+      {members.hasNextPage && (
+        <Button variant="secondary" className="mt-4" busy={members.isFetchingNextPage} onClick={() => void members.fetchNextPage()}>
+          Show more members
+        </Button>
       )}
 
       {manager && <PendingInvitations />}
