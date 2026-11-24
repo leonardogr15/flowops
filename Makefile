@@ -3,7 +3,7 @@ COMPOSE := docker compose
 API := $(COMPOSE) run --rm --no-deps -e DJANGO_SETTINGS_MODULE=config.settings.test api
 
 .PHONY: help env up down logs demo migrations migrate test-api lint-api schema schema-check \
-        web-install test-web lint-web e2e check
+        web-install test-web lint-web e2e-up e2e check
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -52,7 +52,11 @@ test-web: ## Frontend unit/component tests
 lint-web: ## Frontend lint + type check
 	cd frontend && npm run lint && npm run typecheck
 
-e2e: ## Playwright against the running stack (export DEMO_PASSWORD first)
+e2e-up: env ## Start the end-to-end stack (production API image, no autoreload) and seed it
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.e2e.yml exec -T api python manage.py seed_demo
+
+e2e: ## Playwright against the running stack (run `make e2e-up` and export DEMO_PASSWORD first)
 	cd frontend && npm run e2e
 
 check: lint-api test-api schema-check lint-web test-web ## Full local quality gate

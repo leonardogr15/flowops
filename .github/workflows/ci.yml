@@ -90,12 +90,10 @@ jobs:
           test "$(grep -c '^LOGIN_THROTTLE_RATE=100/min$' .env)" = 1
           test "$(grep -c '^LOGIN_IP_THROTTLE_RATE=500/min$' .env)" = 1
           test -z "$(cut -d= -f1 .env | grep -v '^#' | grep . | sort | uniq -d)"
-      - name: Build the production API image
-        run: docker build --target runtime -t flowops-api:ci backend
-      - name: Start the stack
-        run: docker compose up -d --build --wait
+      - name: Start the stack (production API image, no autoreload)
+        run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
       - name: Seed demo data
-        run: docker compose exec -T api python manage.py seed_demo
+        run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T api python manage.py seed_demo
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -107,7 +105,7 @@ jobs:
           npx playwright install --with-deps chromium
           DEMO_PASSWORD="$(grep '^DEMO_PASSWORD=' ../.env | cut -d= -f2)" npx playwright test
       - if: failure()
-        run: docker compose logs api web --tail 200
+        run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs api web --tail 200
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

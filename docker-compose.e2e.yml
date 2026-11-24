@@ -1,0 +1,18 @@
+# Local and CI end-to-end testing only; never deploy it (it keeps the development settings and
+# demo data from .env). End-to-end override: the API runs the production image (gunicorn, several worker processes)
+# with the code baked in, without the bind mount or the autoreloader. Editing files while
+# Playwright runs can no longer restart the server mid-test, and parallel sign-ins (password
+# hashing is CPU-bound) are not serialized behind one development-server process.
+# See "Testing" in README.md. Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+services:
+  api:
+    # Own image name, so the development image (with test tools) is not replaced by this one.
+    image: ${COMPOSE_PROJECT_NAME:-flowops}-api-e2e
+    build:
+      context: ./backend
+      target: runtime
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --no-control-socket --access-logfile -"
+    volumes: !reset []
