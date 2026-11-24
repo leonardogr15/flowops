@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 from apps.organizations.api.views import ORG_HEADER
 from apps.organizations.permissions import IsOrgMember
 from apps.organizations.tenancy import TenantScopedMixin
+from apps.requests.policy import visible_requests
 
 from .models import Notification
 
@@ -30,8 +31,11 @@ class NotificationSerializer(serializers.ModelSerializer[Notification]):
 
 
 def _mine(view: TenantScopedMixin) -> QuerySet[Notification]:
-    """Only the caller's notifications in the active organization."""
-    return Notification.objects.filter(organization=view.organization, user_id=view.membership.user_id)
+    """The caller's notifications in the active organization, about requests they can still see."""
+    visible = visible_requests(view.membership).values("pk")
+    return Notification.objects.filter(
+        organization=view.organization, user_id=view.membership.user_id, request_id__in=visible
+    )
 
 
 @extend_schema(parameters=[ORG_HEADER])

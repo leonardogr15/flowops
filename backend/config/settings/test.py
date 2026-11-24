@@ -15,6 +15,11 @@ MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend
 # Tests assert the production limits, whatever the local environment sets.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
-    "DEFAULT_THROTTLE_RATES": {"login": "5/min", "login_ip": "30/min", "invitation": "30/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "5/min",
+        "login_ip": "30/min",
+        "invitation": "30/min",
+        "comment": "30/min",
+    },
     "NUM_PROXIES": 0,
 }

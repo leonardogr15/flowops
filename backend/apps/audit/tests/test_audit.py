@@ -134,3 +134,13 @@ def test_audit_api_is_admin_only_and_filterable(
     assert client.get("/api/v1/org/audit-events?from=not-a-date").status_code == 400
     for method in ("post", "patch", "delete"):
         assert getattr(client, method)("/api/v1/org/audit-events", {}, format="json").status_code == 405
+
+
+def test_invalid_target_filter_is_a_validation_error(
+    make_org: Callable[..., Organization], member_of: Callable[..., User]
+) -> None:
+    org = make_org()
+    client = login(APIClient(enforce_csrf_checks=True), member_of(org, Role.ADMIN), org)
+    response = client.get("/api/v1/org/audit-events?target=not-a-uuid")
+    assert response.status_code == 400
+    assert "target" in response.json()["errors"]

@@ -36,7 +36,12 @@ class UpdateRequestSerializer(RequestInputSerializer):
 
 
 class DecisionSerializer(serializers.Serializer[None]):
+    step = serializers.IntegerField(min_value=1, help_text="The step being decided, as shown to the user.")
     comment = serializers.CharField(max_length=2000, required=False, allow_blank=True, default="")
+
+
+class SubmitSerializer(serializers.Serializer[None]):
+    revision = serializers.IntegerField(min_value=1, help_text="Revision of the draft the user reviewed.")
 
 
 class CommentInputSerializer(serializers.Serializer[None]):

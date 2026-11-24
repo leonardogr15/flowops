@@ -9,6 +9,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.exceptions import NotFound
 from rest_framework.request import Request as HttpRequest
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.audit.models import AuditEvent
@@ -27,6 +28,7 @@ from .serializers import (
     InboxItemSerializer,
     RequestDetailSerializer,
     RequestListSerializer,
+    SubmitSerializer,
     TimelineEventSerializer,
     UpdateRequestSerializer,
 )
@@ -128,6 +130,7 @@ def _action(name: str, operation_id: str, request_serializer: Any = None) -> typ
                 services.decide(
                     actor=self.membership,
                     request_id=pk,
+                    step=data.validated_data["step"],
                     approve=name == "approve",
                     comment=data.validated_data["comment"],
                 )
@@ -135,6 +138,13 @@ def _action(name: str, operation_id: str, request_serializer: Any = None) -> typ
             if name == "duplicate":
                 new = services.duplicate(actor=self.membership, request_id=pk)
                 return self.detail(new.pk, status.HTTP_201_CREATED)
+            if name == "submit":
+                submitted = SubmitSerializer(data=request.data)
+                submitted.is_valid(raise_exception=True)
+                services.submit(
+                    actor=self.membership, request_id=pk, revision=submitted.validated_data["revision"]
+                )
+                return self.detail(pk)
             getattr(services, name)(actor=self.membership, request_id=pk)
             return self.detail(pk)
 
@@ -142,15 +152,25 @@ def _action(name: str, operation_id: str, request_serializer: Any = None) -> typ
     return ActionView
 
 
-SubmitView = _action("submit", "requests_submit")
+SubmitView = _action("submit", "requests_submit", SubmitSerializer)
 CancelView = _action("cancel", "requests_cancel")
 ApproveView = _action("approve", "requests_approve", DecisionSerializer)
 RejectView = _action("reject", "requests_reject", DecisionSerializer)
 DuplicateView = _action("duplicate", "requests_duplicate")
 
 
+class CommentRateThrottle(ScopedRateThrottle):
+    """Throttles posting comments only; reading them is not limited."""
+
+    def allow_request(self, request: HttpRequest, view: Any) -> bool:
+        return request.method != "POST" or super().allow_request(request, view)
+
+
 @extend_schema(parameters=[ORG_HEADER])
 class CommentsView(_RequestViewBase):
+    throttle_classes = [CommentRateThrottle]
+    throttle_scope = "comment"
+
     @extend_schema(responses=CommentSerializer(many=True), operation_id="requests_comments_list")
     def get(self, request: HttpRequest, pk: UUID) -> Response:
         if not policy.visible_requests(self.membership).filter(pk=pk).exists():

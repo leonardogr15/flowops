@@ -142,6 +142,7 @@ REST_FRAMEWORK = {
         "login": env("LOGIN_THROTTLE_RATE", "5/min"),
         "login_ip": env("LOGIN_IP_THROTTLE_RATE", "30/min"),
         "invitation": env("INVITATION_THROTTLE_RATE", "30/min"),
+        "comment": env("COMMENT_THROTTLE_RATE", "30/min"),
     },
     "UNAUTHENTICATED_USER": None,
     # Number of trusted reverse proxies in front of Django. Throttling uses the client IP that the

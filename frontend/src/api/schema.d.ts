@@ -620,6 +620,8 @@ export interface components {
          */
         DecisionEnum: "regular" | "fallback";
         DecisionRequest: {
+            /** @description The step being decided, as shown to the user. */
+            step: number;
             /** @default  */
             comment: string;
         };
@@ -907,6 +909,10 @@ export interface components {
             approver_user?: string | null;
             /** @default  */
             approver_role: components["schemas"]["RoleEnum"] | components["schemas"]["BlankEnum"];
+        };
+        SubmitRequest: {
+            /** @description Revision of the draft the user reviewed. */
+            revision: number;
         };
         Task: {
             /** Format: uuid */
@@ -1600,7 +1606,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/json": components["schemas"]["DecisionRequest"];
             };
@@ -1728,7 +1734,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/json": components["schemas"]["DecisionRequest"];
             };
@@ -1756,7 +1762,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {

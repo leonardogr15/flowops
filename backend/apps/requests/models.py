@@ -66,6 +66,10 @@ class Request(TenantModel):
                 | Q(status__in=["in_review", "approved", "rejected"], template_version__isnull=False),
                 name="requests_version_pinned_after_submit",
             ),
+            models.CheckConstraint(
+                condition=~Q(status="in_review") | Q(current_step__isnull=False),
+                name="requests_in_review_has_current_step",
+            ),
         ]
         indexes = [
             models.Index(fields=["organization", "status"], name="requests_org_status_idx"),

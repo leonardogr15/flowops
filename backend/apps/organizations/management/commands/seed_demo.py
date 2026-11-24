@@ -107,19 +107,20 @@ class Command(BaseCommand):
             )
 
         approved = new("Laptop for the new designer", "1450.00")
-        requests.submit(actor=member["maya.member"], request_id=approved.pk)
-        for key in ("raj.approver", "adam.admin", "olivia.owner"):
-            requests.decide(actor=member[key], request_id=approved.pk, approve=True)
+        requests.submit(actor=member["maya.member"], request_id=approved.pk, revision=approved.revision)
+        for step, key in enumerate(("raj.approver", "adam.admin", "olivia.owner"), start=1):
+            requests.decide(actor=member[key], request_id=approved.pk, step=step, approve=True)
 
         in_review = new("Ergonomic chairs for the support team", "2300.00")
-        requests.submit(actor=member["maya.member"], request_id=in_review.pk)
-        requests.decide(actor=member["raj.approver"], request_id=in_review.pk, approve=True)
+        requests.submit(actor=member["maya.member"], request_id=in_review.pk, revision=in_review.revision)
+        requests.decide(actor=member["raj.approver"], request_id=in_review.pk, step=1, approve=True)
 
         rejected = new("Conference tickets", "1800.00")
-        requests.submit(actor=member["maya.member"], request_id=rejected.pk)
+        requests.submit(actor=member["maya.member"], request_id=rejected.pk, revision=rejected.revision)
         requests.decide(
             actor=member["raj.approver"],
             request_id=rejected.pk,
+            step=1,
             approve=False,
             comment="Out of budget this quarter. Let's revisit in Q1.",
         )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from django.db.models import QuerySet
 from django.urls import path
@@ -59,7 +60,10 @@ class AuditEventsView(TenantScopedMixin, generics.ListAPIView[AuditEvent]):
         if actor := params.get("actor"):
             qs = qs.filter(actor_email__iexact=actor)
         if target := params.get("target"):
-            qs = qs.filter(target_id=target)
+            try:
+                qs = qs.filter(target_id=UUID(target))
+            except ValueError as exc:
+                raise ValidationError({"target": ["Use the target's UUID."]}) from exc
         for name, lookup in (("from", "created_at__gte"), ("to", "created_at__lt")):
             if raw := params.get(name):
                 moment = parse_datetime(raw)

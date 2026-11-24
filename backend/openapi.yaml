@@ -659,6 +659,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DecisionRequest'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -811,6 +812,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DecisionRequest'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -839,6 +841,12 @@ paths:
         required: true
       tags:
       - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitRequest'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1327,10 +1335,16 @@ components:
     DecisionRequest:
       type: object
       properties:
+        step:
+          type: integer
+          minimum: 1
+          description: The step being decided, as shown to the user.
         comment:
           type: string
           default: ''
           maxLength: 2000
+      required:
+      - step
     DraftRequest:
       type: object
       properties:
@@ -2065,6 +2079,15 @@ components:
       required:
       - approver_type
       - name
+    SubmitRequest:
+      type: object
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+          description: Revision of the draft the user reviewed.
+      required:
+      - revision
     Task:
       type: object
       properties:

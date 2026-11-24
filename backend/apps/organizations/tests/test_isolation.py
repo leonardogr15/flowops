@@ -39,6 +39,7 @@ SAFE_PAYLOAD: dict[str, Any] = {
     "steps": [{"name": "Hijacked step", "approver_type": "role", "approver_role": "member"}],
     "title": "Hijacked title",
     "revision": 1,
+    "step": 1,
     "body": "Hijacked comment",
     "comment": "Hijacked decision",
 }
@@ -122,7 +123,7 @@ def _victim_request(org: Organization, owner: User, *, submitted: bool = True) -
     fields = requests.RequestFields(title="Victim request", amount=Decimal("10"), currency="USD")
     req = requests.create_request(actor=actor, template_id=template.pk, fields=fields)
     if submitted:
-        requests.submit(actor=actor, request_id=req.pk)
+        requests.submit(actor=actor, request_id=req.pk, revision=req.revision)
     return req.pk
 
 

@@ -221,7 +221,7 @@ def _notify_deciders(task: ApprovalTask) -> None:
 
 
 @transaction.atomic
-def submit(*, actor: Membership, request_id: UUID) -> Request:
+def submit(*, actor: Membership, request_id: UUID, revision: int) -> Request:
     peek = policy.visible_requests(actor).filter(pk=request_id).values_list("template_id", flat=True).first()
     if peek is None:
         raise NotFound("Request not found.")
@@ -230,11 +230,15 @@ def submit(*, actor: Membership, request_id: UUID) -> Request:
     req = _locked_visible_request(actor, request_id)
     _require_requester(actor, req)
     _transition(req, RequestStatus.IN_REVIEW)
+    if revision != req.revision:
+        raise Conflict("This draft changed since you opened it. Review it and submit again.")
 
     version = req.template.versions.filter(status=VersionStatus.PUBLISHED).first()
     if version is None:  # pragma: no cover - defensive; publish never leaves a template without one
         raise Conflict("The workflow has no published version.")
     steps = list(version.steps.order_by("order"))
+    if not steps:  # pragma: no cover - publish() refuses empty versions
+        raise Conflict("The workflow has no approval steps.")
 
     # D-B3-2: every step needs at least one possible approver other than the requester right now.
     unreachable = []
@@ -269,7 +273,8 @@ def submit(*, actor: Membership, request_id: UUID) -> Request:
 
 
 @transaction.atomic
-def decide(*, actor: Membership, request_id: UUID, approve: bool, comment: str = "") -> Request:
+def decide(*, actor: Membership, request_id: UUID, step: int, approve: bool, comment: str = "") -> Request:
+    """Decides `step`, which must be the current one: a retry or a stale screen never decides a later step."""
     req = _locked_visible_request(actor, request_id)
     if req.status != RequestStatus.IN_REVIEW:
         raise InvalidTransition("This request is not waiting for a decision.")
@@ -281,6 +286,8 @@ def decide(*, actor: Membership, request_id: UUID, approve: bool, comment: str =
     )
     if task is None or task.step_order != req.current_step:  # pragma: no cover - guarded by constraints
         raise Conflict("This step was already decided.")
+    if step != task.step_order:
+        raise Conflict(f"Step {step} is no longer waiting for a decision. Reload the request.")
     if actor.user_id == req.requester_id:
         raise PermissionDenied("You can't decide your own request.")
     mode = policy.decision_mode(task, actor)
@@ -370,6 +377,8 @@ def cancel(*, actor: Membership, request_id: UUID) -> Request:
 @transaction.atomic
 def add_comment(*, actor: Membership, request_id: UUID, body: str) -> Comment:
     req = _locked_visible_request(actor, request_id)
+    if req.status == RequestStatus.DRAFT:
+        raise InvalidTransition("Comments open once the request is submitted.")
     text = body.strip()
     if not text:
         raise APIValidationError({"body": ["Write a comment first."]})

@@ -74,10 +74,10 @@ def setup(make_org: Callable[..., Organization], member_of: Callable[..., User])
 
 def test_two_approvers_deciding_at_once_produce_exactly_one_decision(setup: dict[str, Membership]) -> None:
     rid = setup["request_id"]
-    services.submit(actor=setup["maya"], request_id=rid)  # type: ignore[arg-type]
+    services.submit(actor=setup["maya"], request_id=rid, revision=1)  # type: ignore[arg-type]
     outcomes = run_together(
-        lambda: services.decide(actor=setup["admin_a"], request_id=rid, approve=True),  # type: ignore[arg-type]
-        lambda: services.decide(actor=setup["admin_b"], request_id=rid, approve=True),  # type: ignore[arg-type]
+        lambda: services.decide(actor=setup["admin_a"], request_id=rid, step=1, approve=True),  # type: ignore[arg-type]
+        lambda: services.decide(actor=setup["admin_b"], request_id=rid, step=1, approve=True),  # type: ignore[arg-type]
     )
     assert outcomes == ["InvalidTransition", "ok"]  # the loser sees the request already closed (409)
     assert ApprovalTask.objects.filter(request_id=rid, status="approved").count() == 1
@@ -87,10 +87,10 @@ def test_two_approvers_deciding_at_once_produce_exactly_one_decision(setup: dict
 
 def test_approve_and_reject_at_once_keep_a_single_outcome(setup: dict[str, Membership]) -> None:
     rid = setup["request_id"]
-    services.submit(actor=setup["maya"], request_id=rid)  # type: ignore[arg-type]
+    services.submit(actor=setup["maya"], request_id=rid, revision=1)  # type: ignore[arg-type]
     outcomes = run_together(
-        lambda: services.decide(actor=setup["admin_a"], request_id=rid, approve=True),  # type: ignore[arg-type]
-        lambda: services.decide(actor=setup["admin_b"], request_id=rid, approve=False, comment="no"),  # type: ignore[arg-type]
+        lambda: services.decide(actor=setup["admin_a"], request_id=rid, step=1, approve=True),  # type: ignore[arg-type]
+        lambda: services.decide(actor=setup["admin_b"], request_id=rid, step=1, approve=False, comment="no"),  # type: ignore[arg-type]
     )
     assert outcomes == ["InvalidTransition", "ok"]
     decided = ApprovalTask.objects.filter(request_id=rid).exclude(status="open")
@@ -104,8 +104,8 @@ def test_approve_and_reject_at_once_keep_a_single_outcome(setup: dict[str, Membe
 def test_double_submit_creates_one_route(setup: dict[str, Membership]) -> None:
     rid = setup["request_id"]
     outcomes = run_together(
-        lambda: services.submit(actor=setup["maya"], request_id=rid),  # type: ignore[arg-type]
-        lambda: services.submit(actor=setup["maya"], request_id=rid),  # type: ignore[arg-type]
+        lambda: services.submit(actor=setup["maya"], request_id=rid, revision=1),  # type: ignore[arg-type]
+        lambda: services.submit(actor=setup["maya"], request_id=rid, revision=1),  # type: ignore[arg-type]
     )
     assert outcomes == ["InvalidTransition", "ok"]
     assert ApprovalTask.objects.filter(request_id=rid).count() == 1
@@ -114,10 +114,10 @@ def test_double_submit_creates_one_route(setup: dict[str, Membership]) -> None:
 
 def test_cancel_and_approve_at_once_never_mix(setup: dict[str, Membership]) -> None:
     rid = setup["request_id"]
-    services.submit(actor=setup["maya"], request_id=rid)  # type: ignore[arg-type]
+    services.submit(actor=setup["maya"], request_id=rid, revision=1)  # type: ignore[arg-type]
     outcomes = run_together(
         lambda: services.cancel(actor=setup["maya"], request_id=rid),  # type: ignore[arg-type]
-        lambda: services.decide(actor=setup["admin_a"], request_id=rid, approve=True),  # type: ignore[arg-type]
+        lambda: services.decide(actor=setup["admin_a"], request_id=rid, step=1, approve=True),  # type: ignore[arg-type]
     )
     assert outcomes == ["InvalidTransition", "ok"]
     req = Request.objects.get(pk=rid)

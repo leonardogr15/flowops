@@ -23,6 +23,14 @@ URL = "/api/v1/org/requests"
 
 
 def act(client: APIClient, rid: str, action: str, **body: Any) -> Any:
+    """Posts an action with the revision or step the user is looking at, like the UI does."""
+    if action in ("submit", "approve", "reject"):
+        seen = client.get(f"{URL}/{rid}")
+        state = seen.json() if seen.status_code == 200 else {}
+        if action == "submit":
+            body.setdefault("revision", state.get("revision", 1))
+        else:
+            body.setdefault("step", state.get("current_step") or 1)
     return client.post(f"{URL}/{rid}/{action}", body, format="json")
 
 
@@ -451,3 +459,70 @@ def test_inbox_lists_decidable_tasks_without_n_plus_one(
     assert len(items) == 4
     assert all(i["needs_admin"] is False for i in items)
     assert as_user(demo.adam).get("/api/v1/org/inbox").json() == []  # step 1 belongs to Raj
+
+
+# --- regressions from the batch 3a security review --------------------------------------------
+
+
+def test_a_retry_cannot_decide_the_next_step(demo: Demo, as_user: Callable[[User], APIClient]) -> None:
+    """Adam is eligible for two consecutive admin steps: a double click must not approve both."""
+    flow = create_template(
+        actor=demo.m(demo.adam),
+        name="Two admin steps",
+        category="other",
+        description="",
+        steps=[
+            StepInput(name="Admin check", approver_type="role", approver_role=Role.ADMIN),
+            StepInput(name="Admin second check", approver_type="role", approver_role=Role.ADMIN),
+        ],
+    )
+    publish(actor=demo.m(demo.adam), template_id=flow.pk)
+    maya, adam = as_user(demo.maya), as_user(demo.adam)
+    rid = create_via_api(maya, demo, template=str(flow.pk))["id"]
+    act(maya, rid, "submit")
+    assert act(adam, rid, "approve", step=1).status_code == 200
+    retry = act(adam, rid, "approve", step=1)  # same click again, now stale
+    assert retry.status_code == 409
+    assert Request.objects.get(pk=rid).current_step == 2
+    assert ApprovalTask.objects.get(request_id=rid, step_order=2).status == "open"
+
+
+def test_submit_rejects_a_stale_revision(demo: Demo, as_user: Callable[[User], APIClient]) -> None:
+    maya = as_user(demo.maya)
+    draft = create_via_api(maya, demo)
+    maya.patch(f"{URL}/{draft['id']}", {"title": "Edited in another tab", "revision": 1}, format="json")
+    stale = maya.post(f"{URL}/{draft['id']}/submit", {"revision": 1}, format="json")
+    assert stale.status_code == 409
+    assert Request.objects.get(pk=draft["id"]).status == RequestStatus.DRAFT
+
+
+def test_drafts_cannot_be_commented(demo: Demo, as_user: Callable[[User], APIClient]) -> None:
+    draft = create_via_api(as_user(demo.maya), demo)
+    response = as_user(demo.adam).post(
+        f"{URL}/{draft['id']}/comments", {"body": "Early feedback"}, format="json"
+    )
+    assert response.status_code == 409
+    assert not Notification.objects.filter(kind="comment_added").exists()
+
+
+def test_notifications_follow_request_visibility(demo: Demo, as_user: Callable[[User], APIClient]) -> None:
+    maya = as_user(demo.maya)
+    rid = create_via_api(maya, demo)["id"]
+    act(maya, rid, "submit")
+    raj = as_user(demo.raj)
+    assert len(raj.get("/api/v1/org/notifications").json()["results"]) == 1
+    act(maya, rid, "cancel")  # Raj never decided: he can no longer see the request
+    assert raj.get("/api/v1/org/notifications").json()["results"] == []
+    assert raj.get("/api/v1/org/notifications/unread").json() == {"unread": 0}
+
+
+def test_in_review_requires_a_current_step_in_the_database(
+    demo: Demo, as_user: Callable[[User], APIClient]
+) -> None:
+    from django.db import IntegrityError, transaction
+
+    maya = as_user(demo.maya)
+    rid = create_via_api(maya, demo)["id"]
+    act(maya, rid, "submit")
+    with pytest.raises(IntegrityError, match="requests_in_review_has_current_step"), transaction.atomic():
+        Request.objects.filter(pk=rid).update(current_step=None)
