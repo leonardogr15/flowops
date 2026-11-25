@@ -166,13 +166,12 @@ and **selectors** perform tenant-scoped reads.
 
 ## Testing and CI
 
-Latest published results, from [CI run 45502673165](https://github.com/leonardogr15/flowops/actions/runs/45502673165)
-on `main` (commit `b66961e`, 2026-11-24, before the accessibility checks on the real pages were
-added): **backend 279 passed** (26 skipped: isolation-harness cases that call a
+Latest published results, from [CI run 45541509216](https://github.com/leonardogr15/flowops/actions/runs/45541509216)
+on `main` (commit `402df2b`, 2026-11-25): **backend 279 passed** (26 skipped: isolation-harness cases that call a
 route with the caller's own organization and no object id, where there is no other tenant's data to
-reach), **98.14% coverage** with an 85% gate; **frontend 44 passed**;
-**end-to-end 18 passed** on desktop and mobile; secret scan clean. The badge above shows the current
-status; later runs on `main` include more tests.
+reach), **98.14% coverage** with an 85% gate; **frontend 51 passed**;
+**end-to-end 20 passed** on desktop and mobile, including axe accessibility checks on the real pages;
+secret scan clean. The badge above shows the current status.
 
 | Suite | Command | What it covers |
 |---|---|---|

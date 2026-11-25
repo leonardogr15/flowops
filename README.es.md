@@ -177,14 +177,13 @@ Los ADR están en inglés.
 
 ## Pruebas e integración continua
 
-Últimos resultados publicados, de la [ejecución de CI 45502673165](https://github.com/leonardogr15/flowops/actions/runs/45502673165)
-en `main` (commit `b66961e`, 2026-11-24, antes de añadir las comprobaciones de accesibilidad sobre
-las páginas reales): **backend 279 aprobadas** (26 omitidas: casos del arnés de
+Últimos resultados publicados, de la [ejecución de CI 45541509216](https://github.com/leonardogr15/flowops/actions/runs/45541509216)
+en `main` (commit `402df2b`, 2026-11-25): **backend 279 aprobadas** (26 omitidas: casos del arnés de
 aislamiento que llaman a una ruta con la organización del propio usuario y sin identificador de
 objeto, donde no hay datos de otra organización que alcanzar), **cobertura 98,14 %** con un mínimo
-del 85 %; **frontend 44 aprobadas**; **extremo a extremo 18 aprobadas** en escritorio y móvil;
-escaneo de secretos limpio. La insignia de arriba muestra el estado actual; las ejecuciones
-posteriores en `main` incluyen más pruebas.
+del 85 %; **frontend 51 aprobadas**; **extremo a extremo 20 aprobadas** en escritorio y móvil,
+incluidas comprobaciones de accesibilidad con axe sobre las páginas reales; escaneo de secretos
+limpio. La insignia de arriba muestra el estado actual.
 
 | Conjunto de pruebas | Comando | Cobertura |
 |---|---|---|
