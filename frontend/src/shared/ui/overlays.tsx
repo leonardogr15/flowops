@@ -136,29 +136,52 @@ interface Notice {
 
 const NoticeContext = createContext<((text: string, tone?: Notice["tone"]) => void) | null>(null);
 
-/** Short confirmations announced to screen readers ("Invitation sent", "Role changed"). */
+/**
+ * Short confirmations ("Invitation sent") are announced politely and fade after 4 s. Errors are
+ * announced as alerts and stay until dismissed, so nobody misses why something didn't work.
+ */
 export function NoticeProvider({ children }: { children: ReactNode }) {
   const [notices, setNotices] = useState<Notice[]>([]);
-  const notify = useCallback((text: string, tone: Notice["tone"] = "success") => {
-    const id = Date.now() + Math.random();
-    setNotices((all) => [...all.slice(-2), { id, text, tone }]);
-    window.setTimeout(() => setNotices((all) => all.filter((n) => n.id !== id)), 4000);
-  }, []);
+  const dismiss = useCallback((id: number) => setNotices((all) => all.filter((n) => n.id !== id)), []);
+  const notify = useCallback(
+    (text: string, tone: Notice["tone"] = "success") => {
+      const id = Date.now() + Math.random();
+      // Errors and confirmations are capped separately, so new confirmations never push out an
+      // error that is still waiting to be read and dismissed.
+      setNotices((all) => {
+        const keep = all.filter((n) => n.tone === tone).slice(-2);
+        return [...all.filter((n) => n.tone !== tone), ...keep, { id, text, tone }];
+      });
+      if (tone === "success") window.setTimeout(() => dismiss(id), 4000);
+    },
+    [dismiss],
+  );
+  const errors = notices.filter((n) => n.tone === "error");
+  const confirmations = notices.filter((n) => n.tone === "success");
   return (
     <NoticeContext value={notify}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
-        {notices.map((n) => (
-          <p
-            key={n.id}
-            className={clsx(
-              "rounded-md px-4 py-2.5 text-sm font-medium shadow-lg",
-              n.tone === "success" ? "bg-ink text-paper" : "bg-reject text-white",
-            )}
-          >
-            {n.text}
-          </p>
-        ))}
+      <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
+        {errors.length > 0 && (
+          // Rendered only while there are errors: an alert is announced when it appears.
+          <div role="alert" className="flex flex-col items-end gap-2">
+            {errors.map((n) => (
+            <p key={n.id} className="pointer-events-auto flex items-start gap-3 rounded-md bg-reject px-4 py-2.5 text-sm font-medium text-white shadow-lg">
+              <span>{n.text}</span>
+              <button type="button" onClick={() => dismiss(n.id)} aria-label="Dismiss message" className="-mr-1 rounded p-0.5 hover:bg-white/15">
+                <X aria-hidden className="size-4" />
+              </button>
+            </p>
+            ))}
+          </div>
+        )}
+        <div aria-live="polite" className="flex flex-col items-end gap-2">
+          {confirmations.map((n) => (
+            <p key={n.id} className="rounded-md bg-ink px-4 py-2.5 text-sm font-medium text-paper shadow-lg">
+              {n.text}
+            </p>
+          ))}
+        </div>
       </div>
     </NoticeContext>
   );

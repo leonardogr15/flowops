@@ -20,6 +20,8 @@ frontend/dist/
 frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
+# Raw recordings and the MP4 demo (kept local; only the GIF is committed)
+frontend/docs-output/
 
 # Editors and OS
 .idea/

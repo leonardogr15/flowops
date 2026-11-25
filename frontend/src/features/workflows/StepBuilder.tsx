@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { ArrowDown, ArrowUp, Plus, Trash2, UserRound, Users } from "lucide-react";
+import { useState } from "react";
 
 import type { Member, Role, Step, StepInput } from "../../api/client";
 import { Select } from "../../shared/ui/overlays";
@@ -93,12 +94,30 @@ interface Props {
 export function StepBuilder({ steps, onChange, members, errors, listError }: Props) {
   const update = (index: number, patch: Partial<StepDraft>) =>
     onChange(steps.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  const [announcement, setAnnouncement] = useState("");
+  const focusLater = (selector: string) =>
+    window.requestAnimationFrame(() => document.querySelector<HTMLElement>(selector)?.focus());
+  const nameOf = (index: number) => steps[index]!.name.trim() || `Step ${index + 1}`;
   const move = (index: number, delta: -1 | 1) => {
     const target = index + delta;
     if (target < 0 || target >= steps.length) return;
     const copy = [...steps];
     [copy[index], copy[target]] = [copy[target]!, copy[index]!];
     onChange(copy);
+    setAnnouncement(`${nameOf(index)} moved to position ${target + 1} of ${steps.length}.`);
+    // Focus follows the moved step; at the first or last position the pressed button is disabled,
+    // so keep keyboard focus on the step's other arrow instead of losing it.
+    const key = steps[index]!.key;
+    if (delta === -1 && target === 0) focusLater(`[data-step-key="${key}"][data-step-action="down"]`);
+    if (delta === 1 && target === steps.length - 1) focusLater(`[data-step-key="${key}"][data-step-action="up"]`);
+  };
+  const remove = (index: number) => {
+    const removed = nameOf(index);
+    const rest = steps.filter((_, i) => i !== index);
+    onChange(rest);
+    setAnnouncement(`${removed} removed. ${rest.length} ${rest.length === 1 ? "step" : "steps"} left.`);
+    const next = rest[Math.min(index, rest.length - 1)];
+    focusLater(next ? `[data-step-key="${next.key}"][data-step-action="remove"]` : "[data-step-action='add']");
   };
 
   return (
@@ -108,6 +127,7 @@ export function StepBuilder({ steps, onChange, members, errors, listError }: Pro
         <p className="text-sm text-muted">Requests move through these steps in order.</p>
       </div>
       {listError && <p role="alert" className="mt-3 rounded-md bg-reject-wash px-3 py-2 text-sm text-reject">{listError}</p>}
+      <p aria-live="polite" className="sr-only">{announcement}</p>
 
       <ol className="mt-5">
         {steps.map((step, index) => (
@@ -120,13 +140,14 @@ export function StepBuilder({ steps, onChange, members, errors, listError }: Pro
             errors={errors[index] ?? {}}
             onUpdate={(patch) => update(index, patch)}
             onMove={(delta) => move(index, delta)}
-            onRemove={() => onChange(steps.filter((_, i) => i !== index))}
+            onRemove={() => remove(index)}
           />
         ))}
       </ol>
 
       <button
         type="button"
+        data-step-action="add"
         onClick={() => onChange([...steps, newStep()])}
         disabled={steps.length >= MAX_STEPS}
         className="mt-2 ml-11 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold border border-dashed border-signal/50 text-signal hover:bg-signal-wash disabled:cursor-not-allowed disabled:border-line disabled:text-muted"
@@ -170,13 +191,13 @@ function StepCard({ step, index, total, members, errors, onUpdate, onMove, onRem
             className="min-w-0 flex-1"
           />
           <div className="mt-7 flex shrink-0 items-center">
-            <button type="button" className={iconButton} onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Move step ${number} up`}>
+            <button type="button" data-step-key={step.key} data-step-action="up" className={iconButton} onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Move step ${number} up`}>
               <ArrowUp className="size-4" />
             </button>
-            <button type="button" className={iconButton} onClick={() => onMove(1)} disabled={index === total - 1} aria-label={`Move step ${number} down`}>
+            <button type="button" data-step-key={step.key} data-step-action="down" className={iconButton} onClick={() => onMove(1)} disabled={index === total - 1} aria-label={`Move step ${number} down`}>
               <ArrowDown className="size-4" />
             </button>
-            <button type="button" className={clsx(iconButton, "hover:text-reject")} onClick={onRemove} aria-label={`Remove step ${number}`}>
+            <button type="button" data-step-key={step.key} data-step-action="remove" className={clsx(iconButton, "hover:text-reject")} onClick={onRemove} aria-label={`Remove step ${number}`}>
               <Trash2 className="size-4" />
             </button>
           </div>

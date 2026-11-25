@@ -356,12 +356,13 @@ describe("audit log", () => {
     );
     const { container } = renderApp("/audit");
     const user = userEvent.setup();
-    expect(await screen.findByRole("link", { name: "task.approved" })).toHaveAttribute("href", `/requests/${REQUEST_ID}`);
+    expect(await screen.findByRole("link", { name: "Approved a step" })).toHaveAttribute("href", `/requests/${REQUEST_ID}`);
+    expect(screen.getByText("task.approved")).toBeInTheDocument(); // technical verb kept as secondary text
     expect(screen.getByRole("cell", { name: "step: 2; fallback: true" })).toBeInTheDocument();
     await noAxeViolations(container);
 
     await user.click(screen.getByRole("button", { name: "Load older entries" }));
-    expect(await screen.findByRole("link", { name: "request.created" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Created the draft" })).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("Area"), "task.");
     await user.click(screen.getByRole("button", { name: "Apply filters" }));

@@ -63,7 +63,7 @@ export function NotificationsMenu() {
         )}
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Content align="start" sideOffset={8} className="z-50 max-h-[min(32rem,calc(100dvh-5rem))] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-md bg-surface p-1 text-ink shadow-xl ring-1 ring-line">
+        <Menu.Content align="end" collisionPadding={8} sideOffset={8} className="z-50 max-h-[min(32rem,calc(100dvh-5rem))] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-md bg-surface p-1 text-ink shadow-xl ring-1 ring-line">
           <Menu.Label className="px-3 py-2 text-sm font-semibold">Notifications</Menu.Label>
           {(list.data?.results ?? []).length === 0 ? (
             <p className="px-3 pb-3 text-sm text-muted">You're all caught up.</p>

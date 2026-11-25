@@ -14,7 +14,20 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: "docs/**" },
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testIgnore: "docs/**" },
+    // Documentation assets (make screenshots / make demo-gif). Only defined when DOCS=1, so a plain
+    // `playwright test` (and CI) never runs them.
+    ...(process.env.DOCS === "1"
+      ? [
+          {
+            name: "docs",
+            testMatch: "docs/**/*.spec.ts",
+            fullyParallel: false,
+            timeout: 180_000,
+            use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+          },
+        ]
+      : []),
   ],
 });
